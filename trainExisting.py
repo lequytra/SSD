@@ -24,7 +24,7 @@ from data_generator.data_augmentation_chain_original_ssd import SSDDataAugmentat
 # Set configuration
 
 img_height = 300 # Height of the input images
-img_width = 480 # Width of the input images
+img_width = 300 # Width of the input images
 img_channels = 3 # Number of color channels of the input images
 intensity_mean = 127.5 # Set this to your preference (maybe `None`). The current settings transform the input pixel values to the interval `[-1,1]`.
 intensity_range = 127.5 # Set this to your preference (maybe `None`). The current settings transform the input pixel values to the interval `[-1,1]`.
@@ -85,12 +85,12 @@ val_dataset = DataGenerator()
 # TODO: Set the paths to your dataset here.
 
 # Images
-images_dir = '/home/ngonhi/csc262/project/SSD/udacity_driving_datasets/'
+images_dir = '/Users/tranle/Downloads/udacity_driving_datasets/'
 
 
 # Ground truth
-train_labels_filename = '/home/ngonhi/csc262/project/SSD/udacity_driving_datasets/labels_train.csv'
-val_labels_filename   = '/home/ngonhi/csc262/project/SSD/udacity_driving_datasets/labels_val.csv'
+train_labels_filename = images_dir + 'labels_train.csv'
+val_labels_filename   = images_dir + 'labels_val.csv'
 
 
 train_dataset.parse_csv(images_dir=images_dir,
@@ -207,8 +207,8 @@ callbacks = [model_checkpoint,
 # TODO: Set the epochs to train for.
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
-final_epoch     = 20
-steps_per_epoch = 1000
+final_epoch     = 5
+steps_per_epoch = 100
 
 history = model.fit_generator(generator=train_generator,
                               steps_per_epoch=steps_per_epoch,
