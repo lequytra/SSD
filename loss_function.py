@@ -45,19 +45,25 @@ def logSoftmax(con_true, con_pred):
 	return log_loss
 
 # https://github.com/pierluigiferrari/ssd_keras/blob/master/keras_loss_function/keras_ssd_loss.py
-def hard_neg_mining(neg_con_loss_all, num_neg_compute):
-	neg_class_loss_all_1D = tf.reshape(neg_class_loss_all, [-1])
-	# Get ones with highest confidence score
-	values, indices = tf.nn.top_k(neg_class_loss_all_1D,
-	            				n_negative_keep,
+def hard_neg_mining(neg_con_loss_all, num_neg_compute, confidence_loss):
+	'''
+	Compute negative loss for only negative boxes with highest confidence score
+	'''
+	neg_con_loss_all_1D = K.reshape(neg_con_loss_all, [-1]) # Shape: (batch_size * n_boxes)
+	
+	values, indices = tf.nn.top_k(neg_con_loss_all_1D,
+	            				num_neg_compute,
 	                            sorted=False) 
 	
+	# Create negative mask
 	negatives_keep = tf.scatter_nd(indices=tf.expand_dims(indices, axis=1),
 	            				updates=tf.ones_like(indices, dtype=tf.int32),
-								shape=tf.shape(neg_class_loss_all_1D)) # Tensor of shape (batch_size * n_boxes,)
-	negatives_keep = tf.to_float(tf.reshape(negatives_keep, [batch_size, n_boxes])) # Tensor of shape (batch_size, n_boxes)
-	# ...and use it to keep only those boxes and mask all other classification losses
-	neg_class_loss = tf.reduce_sum(classification_loss * negatives_keep, axis=-1) # Tensor of shape (batch_size,)
+								shape=tf.shape(neg_con_loss_all_1D)) 
+
+	negatives_keep = K.cast(K.reshape(negatives_keep, [batch_size, n_boxes]),
+							'float32') # Shape: (batch_size, n_boxes)
+
+	neg_class_loss = K.sum(confidence_loss * negatives_keep, -1) # Sum across boxes
 	
 	return neg_class_loss
 
@@ -90,9 +96,9 @@ def loss_function(y_true, y_pred):
 	pos_con_loss = K.sum(confidence_loss * pos_mask, -1) # Sum across boxes
 
 		# Calculate the positive location loss
-	pos_loc_loss = K.sum(location_loss * pos_mask, -1)
+	pos_loc_loss = K.sum(location_loss * pos_mask, -1) # Sum across boxes
 
-	# 4. Calculate the confidence loss for negative class
+	# 3. Calculate the confidence loss for negative class
 	'''
 	Many default boxes are categorized as background, which 
 	will make the confidence loss imbalance. This is the reason
@@ -105,8 +111,8 @@ def loss_function(y_true, y_pred):
 	neg_con_loss_all = confidence_loss * neg_mask
 
 		# Hard negative mining
-	num_pos = K.cast(K.sum(pos_mask), 'int32')
-	num_hard_neg = neg_pos_ratio * num_pos
+	num_pos = K.sum(pos_mask)
+	num_hard_neg = neg_pos_ratio * K.cast(num_pos, 'int32')
 
 		# Get the total number of negative default boxes
 	num_neg_loss = tf.count_nonzero(neg_con_loss_all, dtype=tf.int32)
@@ -114,17 +120,16 @@ def loss_function(y_true, y_pred):
 		# Get the number of negative default boxes 3:1 ratio
 	num_neg_compute = K.minimum(num_hard_neg, num_neg_loss)
 
-	# Cite: https://github.com/oarriaga/SSD-keras/blob/master/src/utils/training/multibox_loss.py
-    elements = (neg_con_loss_all, num_neg_compute)
-    neg_con_loss = tf.map_fn(
-                lambda x: K.sum(tf.nn.top_k(x[0], x[1])[0]),
-                elements, dtype=tf.float32)
+		# Calculate negative loss
+		# If there are no negative boxes, negative loss is 0
+	neg_con_loss = K.switch(K.equal(num_neg_loss, tf.constant(0)), 
+							tf.zeros([batch_size]),
+							hard_neg_mining(neg_con_loss_all, 
+								num_neg_compute, 
+								confidence_loss))
 
-    class_loss = pos_con_loss + neg_con_loss
-
-    # when the number of positives is zero set the total loss to zero
-    batch_mask = K.not_equal(num_pos, 0)
-    total_loss = K.switch(batch_mask, total_loss, K.zeros_like(total_loss))
+	# 4. Calculate total confidence loss
+    con_loss = pos_con_loss + neg_con_loss
 
 	# 5. Calculate the total loss
 	num_pos = K.cast(num_pos, 'float32')
