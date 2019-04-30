@@ -50,7 +50,11 @@ def build_vgg(input_shape,
 	n_prediction_layer = 6 # The number of prediction blocks the model has
 	steps = [None] * n_predictor_layers # Steps is currently not supported
 	offsets = [None] * n_predictor_layers # Offsets are currently not supported
+	variances=[0.1, 0.1, 0.2, 0.2]
+	steps=[8, 16, 32, 64, 100, 300]
 
+	# Calculating the scale of the feature map at each level
+	scale = np.linspace(min_scale, max_scale, n_predictor_layers + 1)
 
 	# Calculate the number of boxes for each feature block
 	n_boxes = []
@@ -155,24 +159,18 @@ def build_vgg(input_shape,
 	# Generate the anchor boxes
     # Output shape of `anchors`: `(batch, height, width, n_boxes, 8)`
      # Output shape of anchors: `(batch, height, width, n_boxes, 8)`
-    priorBox1 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[0], next_scale=scales[1], aspect_ratios=aspect_ratios[0],
-                                             two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[0], this_offsets=offsets[0],
-                                              name='priorBox1')(bbox1)
+    priorBox1 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[0], next_scale=scales[1], aspect_ratios=aspect_ratios[0], 
+    						two_boxes_for_ar1=True, name='priorBox1')(bbox1)
     priorBox2 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[1], next_scale=scales[2], aspect_ratios=aspect_ratios[1],
-                                    		two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[1], this_offsets=offsets[1], clip_boxes=clip_boxes,
-                                     		name='priorBox2')(bbox2)
+							two_boxes_for_ar1=True, name='priorBox2')(bbox2)
     priorBox3 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[2], next_scale=scales[3], aspect_ratios=aspect_ratios[2],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[2], this_offsets=offsets[2],
-                                         name='priorBox3')(bbox3)
+        					two_boxes_for_ar1=True, name='priorBox3')(bbox3)
    	priorBox4 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[3], next_scale=scales[4], aspect_ratios=aspect_ratios[3],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[3], this_offsets=offsets[3], 
-                                         name='priorBox4')(bbox4)
+        					two_boxes_for_ar1=True, name='priorBox4')(bbox4)
     priorBox5 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[4], next_scale=scales[5], aspect_ratios=aspect_ratios[4],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[4], this_offsets=offsets[4], 
-                                        name='priorBox5')(bbox5)
+        					two_boxes_for_ar1=True, name='priorBox5')(bbox5)
     priorBox6 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[5], next_scale=scales[6], aspect_ratios=aspect_ratios[5],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[5], this_offsets=offsets[5], 
-                                        name='priorBox6')(bbox6)
+        					two_boxes_for_ar1=True, name='priorBox6')(bbox6)
 
     # Reshape the classification outputs to have the shape (batch_size, height*width*n_boxes, numClasses)
     class1_reshape = Reshape((-1, numClasses))(class1)
@@ -251,8 +249,8 @@ def build_vgg(input_shape,
 	return model 
 
 VGG = build_vgg((300, 300, 3), 10)
-VGG.compile(optimizer='sgd', loss='mean_squared_error', 
-		metrics=['accuracy'])
+VGG.compile(optimizer='sgd', loss=compute_loss, 
+		metrics=['accuracy', IoU])
 # (X_train, Y_train), (X_test, Y_test) = build_inputs()
 # train(VGG, X_train, Y_train, X_test, Y_test)
 # VGG.fit(X_train, Y_train, validation_data=(X_train, Y_train), epochs=3)
