@@ -231,8 +231,21 @@ def build_vgg(input_shape,
     									bbox_concat, 
     									prior_concat])
 
+    if mode == 'training':
+        model = Model(inputs=x, outputs=predictions, name='SSD')
 
-	model = Model(input=input_img, output=predictions, name="SSD")
+    # If used for inference, the final prediction must be decoded (i.e. convert to absolute coordinates, 
+    #							non-maximal suppression, and take top k highest)
+    elif mode == 'inference':
+        decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
+                                               iou_threshold=iou_threshold,
+                                               top_k=top_k,
+                                               img_height=input_shape[0],
+                                               img_width=input_shape[1],
+                                               name='decoded_predictions')(predictions)
+        model = Model(inputs=x, outputs=decoded_predictions, name='SSD')
+
+
 
 
 	return model 
