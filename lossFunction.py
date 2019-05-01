@@ -1,5 +1,5 @@
 import numpy as np 
-import 
+from generatingBoxes import generate_default_boxes
 import keras.backend as K 
 
 def smoothL1(y_pred, y_truth): 
@@ -52,14 +52,14 @@ def intersection(default, y_truth):
 	y_truth = np.resize(y_truth, (n_default, n_truth, 4))
 
 	# Find the right coordinates of the intersection
-	right_xy = np.amin(default[:, :, 2:], y_truth[:, :, 2:], axis=3)
+	right_xy = np.minimum(default[:, :, 2:], y_truth[:, :, 2:])
 	# Find the left coordinates of the intersection
-	left_xy = np.amax(default[:, :, :2], y_truth[:, :, :2], axis=3)
+	left_xy = np.maximum(default[:, :, :2], y_truth[:, :, :2])
 
 	# Calculate width and height of intersection
 	# set negative values to 0 (no intersecting area)
 
-	intersection_wh = np.clip(right_xy - left_xy, a_min=0)
+	intersection_wh = np.clip(right_xy - left_xy, a_min=0, a_max=None)
 
 	return intersection_wh[:, :, 0] * intersection_wh[:, :, 1]
 
@@ -80,6 +80,9 @@ def IoU(default, y_truth):
 
 	intersect = intersection(default, y_truth)
 
+	n_default = default.shape[0]
+	n_truth = y_truth.shape[0]
+
 	# Expand to 3D 
 	default = np.expand_dims(default, axis=1)
 	y_truth = np.expand_dims(y_truth, axis=0)
@@ -89,8 +92,8 @@ def IoU(default, y_truth):
 	y_truth = np.resize(y_truth, (n_default, n_truth, 4))
 
 	# Calculate areas of every default boxes and ground-truth boxes
-	area_default = (default[:, :, 2] - default[:, :, 0])*(default[:, :, 3] - default[:, :, 1])
-	area_truth = (y_truth[:, :, 2] - y_truth[:, :, 0])*(y_truth[:, :, 3] - y_truth[:, :, 1])
+	area_default = (default[:, :, 2])*(default[:, :, 3])
+	area_truth = (y_truth[:, :, 2])*(y_truth[:, :, 3])
 
 	# Union of area
 
@@ -99,5 +102,15 @@ def IoU(default, y_truth):
 	return intersect/union
 
 
+## TEST: 
+default1 = generate_default_boxes()
+iou_matrix = IoU(default1, default1)
+n_default = default1.shape[0]
+
+# Create a matrix 
+ones_matrix = np.ones_like(iou_matrix)
+
+# assert iou_matrix.shape == ones_matrix.shape
+# assert np.array_equal(ones_matrix, iou_matrix)
 
 
