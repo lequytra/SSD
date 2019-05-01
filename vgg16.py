@@ -3,6 +3,10 @@ import tensorflow as tf
 import math 
 from matplotlib import pyplot as plt
 
+from loss_function import loss_function
+from lossFunction import IoU 
+
+
 from keras.models import Model
 from keras.utils import to_categorical, plot_model
 from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Input, BatchNormalization, Reshape, Concatenate, Activation
@@ -159,7 +163,7 @@ def build_vgg(input_shape,
 	# Generate the anchor boxes
     # Output shape of `anchors`: `(batch, height, width, n_boxes, 8)`
      # Output shape of anchors: `(batch, height, width, n_boxes, 8)`
-    priorBox1 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[0], next_scale=scales[1], aspect_ratios=aspect_ratios[0], 
+    priorBox1 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[0], next_scale=scales[1], aspect_ratios=aspect_ratios[0],
     						two_boxes_for_ar1=True, name='priorBox1')(bbox1)
     priorBox2 = AnchorBoxes(input_shape[0], input_shape[1], this_scale=scales[1], next_scale=scales[2], aspect_ratios=aspect_ratios[1],
 							two_boxes_for_ar1=True, name='priorBox2')(bbox2)
