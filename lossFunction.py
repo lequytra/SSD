@@ -1,4 +1,5 @@
-import numpy as np 
+import numpy as tf 
+import tensorflow as tf
 from generatingBoxes import generate_default_boxes
 import keras.backend as K 
 
@@ -6,7 +7,7 @@ def smoothL1(y_pred, y_truth):
 	"""
 		Calculate the loss between predicted bboxes and ground truth
 		Cite: Faster R-CNN
-		Input Dim: (batch_sizes, n_box_total, 4)
+		Itfut Dim: (batch_sizes, n_box_total, 4)
 	"""
 	thres = K.variable(1)
 	diff = K.abs(y_pred - y_truth)
@@ -15,53 +16,7 @@ def smoothL1(y_pred, y_truth):
 
 	return K.sum(loss, axis=-1)
 
-def confLoss(y_pred, y_truth): 
-	"""
-		Calculate the softmax loss over multiple classes confidences
-		Cite: SSD
-		Input Dim: (batch_sizes, n_box_total, n_classes)
-			y_pred: softmax confidence scores over all classes
-			y_truth: ground truth label (one-hot encoded)
-	"""
-	
 
-def intersection(default, y_truth):
-	"""
-		Input: 
-			- default: a 2D tensor of shape (n_default, 4)
-						with A the number of default boxes at 
-						each pixel location. 
-			- y_truth: a 2D tensor of shape (n_truth, 4)
-						with B the number of ground-truth boxes. 
-
-		Output: 
-			intersect: a 2D tensor of shape (n_default, n_truth), returning the
-						intersection area of each default boxes for
-						every ground-truth boxes. 
-
-	""" 
-	# Get the number of default boxes and ground-truth
-	n_default = default.shape[0]
-	n_truth = y_truth.shape[0]
-	# Expand to 3D 
-	default = np.expand_dims(default, axis=1)  # (n_default, 1, 4)
-	y_truth = np.expand_dims(y_truth, axis=0)  # (1, n_truth, 4)
-
-	# Resize the arrays to dimension (n_default, n_truth, 4)
-	default = np.resize(default, (n_default, n_truth, 4))
-	y_truth = np.resize(y_truth, (n_default, n_truth, 4))
-
-	# Find the right coordinates of the intersection
-	right_xy = np.minimum(default[:, :, 2:], y_truth[:, :, 2:])
-	# Find the left coordinates of the intersection
-	left_xy = np.maximum(default[:, :, :2], y_truth[:, :, :2])
-
-	# Calculate width and height of intersection
-	# set negative values to 0 (no intersecting area)
-
-	intersection_wh = np.clip(right_xy - left_xy, a_min=0, a_max=None)
-
-	return intersection_wh[:, :, 0] * intersection_wh[:, :, 1]
 
 def IoU(default, y_truth): 
 	"""
@@ -78,39 +33,40 @@ def IoU(default, y_truth):
 						every ground-truth boxes. 
 	"""
 
-	intersect = intersection(default, y_truth)
+	x1, y1, w1, h1 = tf.split(default, 4, axis=1)
+	x2, y2, w2, h2 = tf.split(y_truth, 4, axis=1)
+
+	x12 = x1 + w1
+	x22 = x2 + w2
+	y12 = y1 + h1
+	y22 = y2 + h2
 
 	n_default = default.shape[0]
 	n_truth = y_truth.shape[0]
 
-	# Expand to 3D 
-	default = np.expand_dims(default, axis=1)
-	y_truth = np.expand_dims(y_truth, axis=0)
+	topleft_x = tf.maximum(x1,tf.transpose(x2))
+	topleft_y = tf.maximum(y1,tf.transpose(y2))
 
-	# Resize the arrays to dimension (n_default, n_truth, 4)
-	default = np.resize(default, (n_default, n_truth, 4))
-	y_truth = np.resize(y_truth, (n_default, n_truth, 4))
+	botright_x = tf.minimum(x12,tf.transpose(x22))
+	botright_y = tf.minimum(y12,tf.transpose(y22))
+
+	intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
 
 	# Calculate areas of every default boxes and ground-truth boxes
-	area_default = (default[:, :, 2])*(default[:, :, 3])
-	area_truth = (y_truth[:, :, 2])*(y_truth[:, :, 3])
+	area_default = w1*h1
+	area_truth = w2*h2
 
 	# Union of area
 
 	union = area_default + area_truth - intersect
 
-	return intersect/union
+	return tf.maximum(intersect/union, 0)
 
 
 ## TEST: 
-default1 = generate_default_boxes()
-iou_matrix = IoU(default1, default1)
-n_default = default1.shape[0]
+# default1 = generate_default_boxes()
+# iou_matrix = IoU(default1, default1)
+# n_default = default1.shape[0]
 
-# Create a matrix 
-ones_matrix = np.ones_like(iou_matrix)
-
-# assert iou_matrix.shape == ones_matrix.shape
-# assert np.array_equal(ones_matrix, iou_matrix)
 
 

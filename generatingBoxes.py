@@ -60,7 +60,7 @@ def generate_default_boxes(input_shape=(300,300,3),
 
 
 default = generate_default_boxes()
-print(default.shape)
+
 
 
 
