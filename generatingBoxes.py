@@ -4,48 +4,57 @@ import tensorflow as tf
 import keras.backend as K 
 import itertools as it
 
-from lossFunction import IoU
 
 class Encoder(): 
 	def __init__(self, 
-				numClasses=10,
-				input_shape=(300,300,3),
-				min_scale=0.2, 
-				max_scale=0.9, 
-				aspect_ratio=[0.5, 1, 2], 
-				n_predictions=6, 
-				prediction_size=[38, 19, 10, 5, 3, 1]): 
-	""" 
-		Input: 
-			- input_shape: the shape of the input image
-			- numClasses: the number of classes that will be trained
-			- min_scale: the smallest feature map scale
-			- max_scale: the largest feature map scale
-			- aspect_ratio: a list of aspect ratios for each default boxes
-			- n_predictions: number of prediction layers
-			- prediction_size: a list of sizes for the predictions
-								The number of element must be equal to n_predictions
-	"""
+						y_truth, 
+						numClasses=10,
+						input_shape=(300,300,3),
+						iou_thres=0.5,
+						min_scale=0.2, 
+						max_scale=0.9, 
+						aspect_ratio=[0.5, 1, 2], 
+						n_predictions=6, 
+						prediction_size=[38, 19, 10, 5, 3, 1]): 
+		""" 
+			Input: 
+				- input_shape: the shape of the input image
+				- numClasses: the number of classes that will be trained
+				- y_truth: the ground-truth labels of the image ([])
+				- iou_thres: The threshold for matching default to ground-truth
+				- min_scale: the smallest feature map scale
+				- max_scale: the largest feature map scale
+				- aspect_ratio: a list of aspect ratios for each default boxes
+				- n_predictions: number of prediction layers
+				- prediction_size: a list of sizes for the predictions
+									The number of element must be equal to n_predictions
+		"""
 
 		self.im_height = input_shape[0]
 		self.numClasses = numClasses
+		self.y_truth = y_truth
 		self.im_width = input_shape[1]
 		self.n_layers = n_predictions
 		# Calculate the scale at each prediction layer
 		self.scales = np.linspace(start=min_scale, stop=max_scale, num=n_predictions)
 		self.map_size = prediction_size
-		self.default = np.empty(shape=(1, 4))
+		self.default = generate_default_boxes()
 		self.background_id = 0
+		self.labels = y_truth[:, 4:]
+		self.boxes = y_truth[:, :4]
+		self.iou_matrix = IoU(self.default, self.boxes)
+		self.matches = multi_matching()
 
 
 
 	def generate_default_boxes(): 
 
-	"""
-		Output: 
-			- default: a 2D array (#defaults, 4) containing the coordinates [x, y, h, w] 
-						of all default boxes relative to the image size. 
-	"""
+		"""
+			Output: 
+				- default: a 2D array (#defaults, 4) containing the coordinates [x, y, h, w] 
+							of all default boxes relative to the image size. 
+		"""
+		self.default = np.empty(shape=(1, 4))
 
 		for level in range(self.n_layers):
 
@@ -94,34 +103,97 @@ class Encoder():
 
 		return encoded
 
-	def encode_label(y_truth): 
+	def max_bipartite_matching(): 
+		"""
+			Perform the maximum bipartite matching algorithm that matches the 
+			ground-truth box with a default with highest Jaccard index
+
+			Output: 
+				- Return a 1D array of length n_boxes that contains the index of 
+					the matched default boxes for each ground-truth box.  
+
+		"""
+
+		n_boxes = self.boxes.shape[0]
+		weight = self.iou_matrix
+		matched = np.zeros(shape(n_boxes,))
+
+		for i in range(n_boxes): 
+			max_index = np.unravel_index(np.argmax(weight, axis=None), iou_matrix.shape)
+			gt_coord = max_index[1]
+			db_coord = max_index[0]
+			matched[gt_coord] = db_coord
+			weight[:, gt_coord] = 0
+			weight[db_coord, :] = 0
+			self.iou_matrix[db_coord, gt_coord] = 1
+
+		return matched
+
+
+	def multi_matching(): 
+		"""
+			Match the default boxes to any ground-truth boxes with 
+			iou >= iou_thres
+			If none, set to -1
+		"""
+		matched = max_bipartite_matching()
+		highest_box = np.max(self.iou_matrix, axis=1)
+
+		assert highest_box.shape[0] == self.default.shape[0]
+
+		self.matches = np.argmax(self.iou_matrix, axis=1)
+
+		# Set all the matched pair with iou < thres to -1
+		self.matches[highest_box < self.iou_thres] = -1
+
+		assert self.matches.shape[0] == self.default.shape[0]
+
+
+		return self.matches
+
+	def IoU(default, y_truth): 
 		"""
 			Input: 
-				- y_truth: a 2D array (#n_boxes, 5) containing the coordinates and class of 
-							the ground-truth labels coordinates must be normalized [0, 1]
+				- default: a 2D tensor of shape (n_default, 4)
+							with A the number of default boxes at 
+							each pixel location. 
+				- y_truth: a 2D tensor of shape (n_truth, 4)
+							with B the number of ground-truth boxes. 
+
+			Output: 
+				- iou:  a 2D tensor of shape (n_default, n_truth), returning the
+							Jaccard index of each default boxes for
+							every ground-truth boxes. 
 		"""
 
-		# Calculate the IoU of the default boxes with all the grouth-truth boxes
-		# The result is a 2D matrix with the shape (#default, #n_boxes)
-		iou_matrix = IoU(self.default, y_truth)
-		# Find #default and n_boxes
-		n_default = self.default.shape[0]
-		n_boxes = y_truth.shape[0]
-		# For each gt, find the default box index that has the best match
-		max_indices = np.argmax(iou_matrix, axis=0)
+		x1, y1, w1, h1 = np.split(self.default, 4, axis=1)
+		x2, y2, w2, h2 = np.split(self.y_truth, 4, axis=1)
 
-		assert max_indices.shape == n_boxes
+		x12 = x1 + w1
+		x22 = x2 + w2
+		y12 = y1 + h1
+		y22 = y2 + h2
 
-		# create a 2D zero matrix for one-hot encode (n_boxes, numClasses + 1)
-		one_hot = np.zeros(shape=(n_boxes, numClasses + 1))
+		n_default = default.shape[0]
+		n_truth = y_truth.shape[0]
 
-		# Obtain the boxes' labels
-		labels = y_truth[:, -1]
+		topleft_x = np.maximum(x1,np.transpose(x2))
+		topleft_y = np.maximum(y1,np.transpose(y2))
 
-		# Encode the classes
+		botright_x = np.minimum(x12,np.transpose(x22))
+		botright_y = np.minimum(y12,np.transpose(y22))
 
+		intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
 
+		# Calculate areas of every default boxes and ground-truth boxes
+		area_default = w1*h1
+		area_truth = w2*h2
 
+		# Union of area
 
+		union = area_default + area_truth - intersect
 
+		self.iou_matrix = np.maximum(intersect/union, 0)
+
+		return self.iou_matrix
 
