@@ -31,7 +31,7 @@ class Encoder():
 		"""
 
 		self.im_height = input_shape[0]
-		self.numClasses = numClasses
+		self.numClasses = numClasses 
 		self.y_truth = y_truth
 		self.im_width = input_shape[1]
 		self.n_layers = n_predictions
@@ -200,7 +200,7 @@ class Encoder():
 		n_default = self.default.shape[0]
 
 		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
-		encoded = np.zeros(shape=(n_default, 1 + numClasses + 4))
+		encoded = np.zeros(shape=(n_default, numClasses + 4))
 
 		for i in range(n_default):
 			
@@ -213,7 +213,7 @@ class Encoder():
 			else: 
 				curr_default = self.default[i]
 
-				macth = self.boxes[matched_gt] # (x, y, w, h) normalized
+				match = self.boxes[matched_gt] # (x, y, w, h) normalized
 
 				# Calculate the offset of the matched ground-truth to the default box
 				xy_offset = match[:2] - curr_default[:2]
@@ -226,7 +226,7 @@ class Encoder():
 				# Append to offset (x, y, w, h)
 				encoded_y = np.append(label, xy_offset, wh_offset)
 
-				assert coord_offset.shape == (self.numClasses + 4,)
+				assert encoded_y.shape == (self.numClasses + 4,)
 
 				encoded = np.append(encoded, encoded_y, axis=0)
 
