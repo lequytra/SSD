@@ -3,21 +3,6 @@ import tensorflow as tf
 from generatingBoxes import generate_default_boxes
 import keras.backend as K 
 
-def smoothL1(y_pred, y_truth): 
-	"""
-		Calculate the loss between predicted bboxes and ground truth
-		Cite: Faster R-CNN
-		Itfut Dim: (batch_sizes, n_box_total, 4)
-	"""
-	thres = K.variable(1)
-	diff = K.abs(y_pred - y_truth)
-	
-	loss = K.switch(diff < thres, 0.5 * diff ** 2, K.sum(diff, -0.5))
-
-	return K.sum(loss, axis=-1)
-
-
-
 def IoU(default, y_truth): 
 	"""
 		Input: 
