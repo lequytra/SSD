@@ -200,7 +200,7 @@ class Encoder():
 		n_default = self.default.shape[0]
 
 		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
-		encoded = np.zeros(shape=(n_default, numClasses + 4))
+		encoded = np.empty(shape=(0, numClasses + 4))
 
 		for i in range(n_default):
 			
@@ -225,8 +225,9 @@ class Encoder():
 
 				# Append to offset (x, y, w, h)
 				encoded_y = np.append(label, xy_offset, wh_offset)
+				encoded_y = np.expand_dims(axis=0)
 
-				assert encoded_y.shape == (self.numClasses + 4,)
+				assert encoded_y.shape == (1, self.numClasses + 4)
 
 				encoded = np.append(encoded, encoded_y, axis=0)
 
