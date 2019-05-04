@@ -7,15 +7,15 @@ import keras.backend as K
 
 class Encoder(): 
 	def __init__(self, 
-						y_truth, 
-						numClasses=10,
-						input_shape=(300,300,3),
-						iou_thres=0.5,
-						min_scale=0.2, 
-						max_scale=0.9, 
-						aspect_ratio=[0.5, 1, 2], 
-						n_predictions=6, 
-						prediction_size=[38, 19, 10, 5, 3, 1]): 
+				y_truth, 
+				numClasses=10,
+				input_shape=(300,300,3),
+				iou_thres=0.5,
+				min_scale=0.2, 
+				max_scale=0.9, 
+				aspect_ratio=[0.5, 1, 2], 
+				n_predictions=6, 
+				prediction_size=[38, 19, 10, 5, 3, 1]): 
 		""" 
 			Input: 
 				- input_shape: the shape of the input image

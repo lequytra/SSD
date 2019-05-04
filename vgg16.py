@@ -231,6 +231,13 @@ def build_SSD300(input_shape,
 	if mode == 'training':
 	    model = Model(inputs=input_img, outputs=predictions, name='SSD')
 
+	elif mode == 'inference': 
+		encoder = Encoder()
+		default = encoder.default
+		predictions = Decoder(predictions=predictions,
+								defaults=default).nsm()
+		model = Model(inputs=input_img, outputs=predictions, name='SSD-300')
+
 	return model 
 
 
