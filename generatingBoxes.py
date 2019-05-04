@@ -2,7 +2,7 @@ import numpy as np
 from math import sqrt
 import tensorflow as tf 
 import keras.backend as K 
-import itertools as it
+
 
 
 class Encoder(): 
@@ -40,8 +40,8 @@ class Encoder():
 		self.map_size = prediction_size
 		self.default = generate_default_boxes()
 		self.background_id = 0
-		self.labels = y_truth[:, 4:]
-		self.boxes = y_truth[:, :4]
+		self.labels = y_truth[:, :-4]
+		self.boxes = y_truth[:, -4:]
 		self.iou_matrix = IoU(self.default, self.boxes)
 		self.matches = multi_matching()
 
@@ -135,6 +135,10 @@ class Encoder():
 			Match the default boxes to any ground-truth boxes with 
 			iou >= iou_thres
 			If none, set to -1
+
+			Output: 
+				- matches: The index of the ground-truth box matched
+								with each default box (n_default,)
 		"""
 		matched = max_bipartite_matching()
 		highest_box = np.max(self.iou_matrix, axis=1)
@@ -151,14 +155,8 @@ class Encoder():
 
 		return self.matches
 
-	def IoU(default, y_truth): 
+	def IoU(): 
 		"""
-			Input: 
-				- default: a 2D tensor of shape (n_default, 4)
-							with A the number of default boxes at 
-							each pixel location. 
-				- y_truth: a 2D tensor of shape (n_truth, 4)
-							with B the number of ground-truth boxes. 
 
 			Output: 
 				- iou:  a 2D tensor of shape (n_default, n_truth), returning the
@@ -174,8 +172,8 @@ class Encoder():
 		y12 = y1 + h1
 		y22 = y2 + h2
 
-		n_default = default.shape[0]
-		n_truth = y_truth.shape[0]
+		n_default = self.default.shape[0]
+		n_truth = self.y_truth.shape[0]
 
 		topleft_x = np.maximum(x1,np.transpose(x2))
 		topleft_y = np.maximum(y1,np.transpose(y2))
@@ -197,3 +195,48 @@ class Encoder():
 
 		return self.iou_matrix
 
+	def encode():
+
+		n_default = self.default.shape[0]
+
+		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
+		encoded = np.zeros(shape=(n_default, 1 + numClasses + 4))
+
+		for i in range(n_default):
+			
+			matched_gt =  self.matches[i]
+			# If the default box is not matched with any ground-truth
+			if matched_gt == -1: 
+				encoded_y = np.zeros(shape=(self.numClasses + 4))
+				encoded = np.append(encoded, encoded_y, axis=0)
+
+			else: 
+				curr_default = self.default[i]
+
+				macth = self.boxes[matched_gt] # (x, y, w, h) normalized
+
+				# Calculate the offset of the matched ground-truth to the default box
+				xy_offset = match[:2] - curr_default[:2]
+				wh_offset = np.log(match[2:]/curr_default[2:])
+
+				assert xy_offset.shape == (2,)
+
+				label = self.labels[matched_gt]
+
+				# Append to offset (x, y, w, h)
+				encoded_y = np.append(label, xy_offset, wh_offset)
+
+				assert coord_offset.shape == (self.numClasses + 4,)
+
+				encoded = np.append(encoded, encoded_y, axis=0)
+
+		# The default that is not matched with any ground-truth is considered
+		# the background class
+		background_class = self.matches < 0
+
+		# Append background class to produce the final encoded labels
+		encoded = np.append(background_class, encoded, axis=1)
+
+		assert encoded.shape == (n_default, 1 + self.numClasses + 4)
+
+		return encoded
