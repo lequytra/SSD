@@ -63,7 +63,6 @@ model = build_model(image_size=(img_height, img_width, img_channels),
 # 2: Optional: Load some weights
 
 #model.load_weights('./ssd7_weights.h5', by_name=True)
-
 # 3: Instantiate an Adam optimizer and the SSD loss function and compile the model
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
@@ -78,46 +77,31 @@ model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
 
 # Optional: If you have enough memory, consider loading the images into memory for the reasons explained above.
 
-train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
-val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
+train_dataset = DataGenerator()
+val_dataset = DataGenerator()
 
 # 2: Parse the image and label lists for the training and validation datasets.
 
 # TODO: Set the paths to your dataset here.
 
 # Images
-images_dir_train = '../../mscoco/train2017'
-images_dir_val = '../../mscoco/val2017'
+images_dir = '/Users/tranle/Downloads/udacity_driving_datasets/'
+
 
 # Ground truth
-train_labels_filename = '../../mscoco/instances_train2017.json'
-val_labels_filename   = '../../mscoco/instances_val2017.json'
+train_labels_filename = images_dir + 'labels_train.csv'
+val_labels_filename   = images_dir + 'labels_val.csv'
 
-train_dataset.parse_json(images_dir=images_dir_train,
+
+train_dataset.parse_csv(images_dir=images_dir,
                         labels_filename=train_labels_filename,
-                        input_format=['image_name', 'xmin', 'xmax', 'ymin', 'ymax', 'class_id'], 
-   # This is the order of the first six columns in the CSV file that contains the labels for your dataset. If your labels are in XML format, maybe the XML parser will be helpful, check the documentation.
+                        input_format=['image_name', 'xmin', 'xmax', 'ymin', 'ymax', 'class_id'],
                         include_classes='all')
 
-val_dataset.parse_json(images_dir=images_dir_val,
+val_dataset.parse_csv(images_dir=images_dir,
                       labels_filename=val_labels_filename,
                       input_format=['image_name', 'xmin', 'xmax', 'ymin', 'ymax', 'class_id'],
                       include_classes='all')
-
-# Optional: Convert the dataset into an HDF5 dataset. This will require more disk space, but will
-# speed up the training. Doing this is not relevant in case you activated the `load_images_into_memory`
-# option in the constructor, because in that cas the images are in memory already anyway. If you don't
-# want to create HDF5 datasets, comment out the subsequent two function calls.
-
-# train_dataset.create_hdf5_dataset(file_path='dataset_udacity_traffic_train.h5',
-#                                   resize=False,
-#                                   variable_image_size=True,
-#                                   verbose=True)
-
-# val_dataset.create_hdf5_dataset(file_path='dataset_udacity_traffic_val.h5',
-#                                 resize=False,
-#                                 variable_image_size=True,
-#                                 verbose=True)
 
 # Get the number of samples in the training and validations datasets.
 train_dataset_size = train_dataset.get_dataset_size()
@@ -223,8 +207,8 @@ callbacks = [model_checkpoint,
 # TODO: Set the epochs to train for.
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
-final_epoch     = 20
-steps_per_epoch = 1000
+final_epoch     = 5
+steps_per_epoch = 100
 
 history = model.fit_generator(generator=train_generator,
                               steps_per_epoch=steps_per_epoch,
@@ -238,4 +222,3 @@ plt.figure(figsize=(20,12))
 plt.plot(history.history['loss'], label='loss')
 plt.plot(history.history['val_loss'], label='val_loss')
 plt.legend(loc='upper right', prop={'size': 24});
-
