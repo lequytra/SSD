@@ -165,7 +165,7 @@ class Encoder():
 		"""
 
 		x1, y1, w1, h1 = np.split(self.default, 4, axis=1)
-		x2, y2, w2, h2 = np.split(self.y_truth, 4, axis=1)
+		x2, y2, w2, h2 = np.split(self.boxes, 4, axis=1)
 
 		x12 = x1 + w1
 		x22 = x2 + w2
@@ -221,7 +221,7 @@ class Encoder():
 
 				assert xy_offset.shape == (2,)
 
-				label = self.labels[matched_gt]
+				label = self.labels[matched_gt, :]
 
 				# Append to offset (x, y, w, h)
 				encoded_y = np.append(label, xy_offset, wh_offset)
