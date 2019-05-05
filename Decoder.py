@@ -1,6 +1,6 @@
 import numpy as np 
 import tensorflow as tf
-from tensorflow.math import argmax
+from tensorflow.math import argmax, exp
 from tensorflow.image import non_maximal_suppression 
 import keras.backend as K 
 
@@ -30,10 +30,10 @@ class Decoder():
 		self.iou_thres = iou_thres
 		self.score_thres = score_thres
 		self.top_k = top_k
-		self.decoded = decode()
+		self.decoded = decode_coords()
 
 
-	def decode(): 
+	def decode_coords(): 
 		"""
 			Output: 
 				- decoded_predictions: 
@@ -44,14 +44,14 @@ class Decoder():
 
 		n_default = self.defaults.shape[0]
 
-		self.decoded = np.empty(shape=(0, 1 + numClasses + 4))
+		self.decoded = tf.constant(np.empty(shape=(0, 1 + numClasses + 4)))
 
 		for i in range(n_default): 
 			curr_pred = self.bboxes[i]
 			curr_db = self.defaults[i]
 
 			xy_abs = curr_pred[:2]*curr_db[2:] + curr_db[:2]
-			wh_abs = K.exp(curr_pred[2:])*curr_db[2:]
+			wh_abs = exp(curr_pred[2:])*curr_db[2:]
 
 			xy2_abs = xy_abs + wh_abs
 			
@@ -74,17 +74,25 @@ class Decoder():
 		return self.decoded 
 
 	def nsm(): 
-		max_scores = np.max(self.labels, axis=1)
+		max_scores = tf.max(self.labels, axis=1)
 
 		nms_boxes_idx = non_maximal_suppression(boxes=self.decoded[:, -4:], 
 											scores=max_scores,
 											max_output_size=self.top_k, 
 											iou_thres=self.iou_thres, 
 											score_thres=self.score_thres)
-		return self.decoded[nms_boxes_idx]
+		return nms_boxes_idx
 
 
+	def prediction_out(): 
 
+		# Get the class_id with the highest scores
+		pred_labels = argmax(self.labels[:, self.background_id + 1:], axis=1)
+		selected_boxes_idx = nsm()
+
+		final_pred = tf.concat(pred_labels[selected_boxes_idx], self.decoded[selected_boxes_idx])
+
+		return final_pred
 			
 
 
