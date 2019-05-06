@@ -3,6 +3,7 @@ import numpy as np
 form tqdm import tqdm
 import os
 import json
+import os
 
 class Parser():
     def _init_ (self, data_dir, data_type):
@@ -61,14 +62,22 @@ def parse_json(self):
             gt = np.append(labels, bbox, axis = 1)
             self.ground_truth = np.append(ground_truth, gt, axis = 0) #Shape(#gt, numClasses + 4)
 
-def load_img_paths(self):
+def load_img_paths(self, fileName=None):
     '''
     Load all images of ten above categories
     '''
 
     # Open file for writing (overwrite mode)
     # Change path when running
-    f= open("/home/ngonhi/csc262/project/SSD/imagePath.txt","w")
+    path = os.getcwd()
+    if(fileName=None): 
+        fileName = "imagePaths.txt"
+    else: 
+        fileName = fileName + ".txt"
+
+    path = path + fileName
+    
+    f= open(path,"w")
 
     for imgId in self.img_ids:
         path = '{}/{}/{:012}.jpg\n'.format(self.dataDir, self.dataType, imgId)
