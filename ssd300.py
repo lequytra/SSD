@@ -229,7 +229,7 @@ def build_SSD300(input_shape,
 										bbox_concat])
 
 	if mode == 'training':
-	    model = Model(inputs=input_img, outputs=predictions, name='SSD')
+	    model = Model(inputs=input_img, outputs=predictions, name='SSD-300')
 
 	elif mode == 'inference': 
 		encoder = Encoder()
