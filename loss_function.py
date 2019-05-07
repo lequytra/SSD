@@ -129,7 +129,7 @@ def loss_function(y_true, y_pred):
 								confidence_loss))
 
 	# 4. Calculate total confidence loss
-    con_loss = pos_con_loss + neg_con_loss
+	con_loss = pos_con_loss + neg_con_loss
 
 	# 5. Calculate the total loss
 	num_pos = K.cast(num_pos, 'float32')
