@@ -1,7 +1,7 @@
 import numpy as np 
 import tensorflow as tf
 from tensorflow.math import argmax, exp
-from tensorflow.image import non_maximal_suppression 
+from tensorflow.image import non_max_suppression 
 import keras.backend as K 
 
 class Decoder(): 
@@ -9,7 +9,7 @@ class Decoder():
 					predictions, 
 					defaults, 
 					numClasses=10, 
-					iou_thres=0.45, 
+					nms_thres=0.45, 
 					score_thres=0.01, 
 					top_k=200):
 		"""
@@ -27,7 +27,7 @@ class Decoder():
 		self.background_id = 0
 		self.labels = predictions[:, :numClasses + 1]
 		self.bboxes = predictions[:, -4:]
-		self.iou_thres = iou_thres
+		self.nms_thres = nms_thres
 		self.score_thres = score_thres
 		self.top_k = top_k
 		self.decoded = decode_coords()
@@ -79,7 +79,7 @@ class Decoder():
 		nms_boxes_idx = non_maximal_suppression(boxes=self.decoded[:, -4:], 
 											scores=max_scores,
 											max_output_size=self.top_k, 
-											iou_thres=self.iou_thres, 
+											nms_thres=self.nms_thres, 
 											score_thres=self.score_thres)
 		return nms_boxes_idx
 

@@ -195,7 +195,7 @@ class Encoder():
 
 		return self.iou_matrix
 
-	def encode():
+	def get_encoded_data():
 
 		n_default = self.default.shape[0]
 
