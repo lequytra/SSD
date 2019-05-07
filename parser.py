@@ -1,13 +1,17 @@
 from pycocotools.coco import COCO
-import numpy as 
-import matplot.pyplot as plt
+import numpy as np
+import keras.backend as K
+import tensorflow as tf
+from tensorflow.image import draw_bounding_boxes
+import cv2
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 import json
 import os
 
 class Parser():
-    def __init__ (self, data_dir, data_type, resize_shape=None):
+    def __init__ (self, data_dir, data_type, resize_shape=(300,300,3)):
         '''
         data_dir: a path to directory containing annotations
         data_type: type of the annotations, train or val
@@ -17,6 +21,7 @@ class Parser():
         self.data_type = data_type
         annFile = '{}/annotations/instances_{}.json'.format(self.data_dir,self.data_type)
         self.coco = COCO(annFile)
+        self.fileName = None
         self.resize_shape = resize_shape
         
         
@@ -34,19 +39,8 @@ class Parser():
         self.img_ids = []
 
         if self.resize_shape != None:
-            width_ratio = resize_shape[0]
-            height_ratio = resize_shape[1]
-
-        ''' No need
-        # Get categories 
-        cats = coco.loadCats(ids=catIds)
-        # person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic
-        classes_to_names = [] # A list of the class names with their indices representing the transformed IDs
-        classes_to_names.append('background') # Need to add the background class first so that the indexing is right.
-        img_ids = []
-        for id, cat in cats:
-            classes_to_names.append(cat['name'])
-        '''
+            width_ratio = self.resize_shape[0]
+            height_ratio = self.resize_shape[1]
     
         for id in catIds:
             annIds = coco.getAnnIds(catIds = id)
@@ -71,8 +65,8 @@ class Parser():
                                 * (width_ratio / width) # Normalized
                 bbox[0][1] = (float) (ann['bbox'][1] + ann['bbox'][3]) / 2 / height \
                                 * (height_ratio / height) # Normalized
-                bbox[0][2] = (float) (ann['bbox'][2]) / width
-                bbox[0][3] = (float) (ann['bbox'][3]) / height
+                bbox[0][2] = (float) (ann['bbox'][2]) / width * (width_ratio / width)
+                bbox[0][3] = (float) (ann['bbox'][3]) / height * (height_ratio / height)
     
                 # Create a ground_truth item
                 gt = np.append(labels, bbox, axis = 1)
@@ -90,42 +84,68 @@ class Parser():
         # Change path when running
         path = os.getcwd()
         if(fileName==None): 
-            fileName = "imagePaths.txt"
+            self.fileName = "imagePaths.txt"
         else: 
-            fileName = fileName + ".txt"
+            self.fileName = fileName + ".txt"
 
-        path = path + fileName
-    
+        path = path + self.fileName
+
         f= open(path,"w")
 
         for imgId in self.img_ids:
-            im_path = '{}/{}/{:012}.jpg\n'.format(self.dataDir, self.dataType, imgId)
+            im_path = '{}/{}/{:012}.jpg\n'.format(self.data_dir, self.data_type, imgId)
             f.write(im_path)
 
         f.close()
 
-    def load_imgs(fileName="imagePaths.txt"):
-         path = os.getcwd()
+    def load_training_imgs(self):
+        path = os.getcwd()
 
-         path = path + fileName
+        path = path + self.fileName
 
-         im_collection = tuple()
+        im_collection = []
 
-         with open(path) as f: 
-            im_path = f.readlines()
-            im_path = im_path.strip()
+        with open(path) as f: 
 
-            image = 
+            for im_path in f: 
+
+                im_path = im_path.strip()
+                image = cv2.imread(im_path)
+
+                image = cv2.resize(image, dsize=(self.resize_shape[0], 
+                                                self.resize_shape[1]))
+
+                im_collection.append(image)
+            
+        return im_collection
+
 
 
 
 def main(): 
-    data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
+    # data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
+    data_dir = "/Users/tranle/mscoco"
     data_type = "val2017"
     p = Parser(data_dir, data_type)
     gt = p.parse_json()
 
-    print(gt[:10][0])
+    p.load_img_paths()
+
+    im_collection = p.load_training_imgs()
+    bbox_im = [im_collection[:10]]
+    bbox_coord = gt[:10][-4:]
+    print(type(im_collection))
+    print(len(im_collection))
+    print(gt.shape)
+    images = tf.constant(im_collection)
+    bbox_coord[:,2] += bbox_coord[:, 0]
+    bbox_coord[:, 3] += bbox_coord[:, 1]
+
+    coords = tf.constant(bbox_coord)
+
+    drawed = tf.image.draw_bounding_boxes(images, coords)
+    plt.imshow(drawed[0])
+
 
 
 if __name__ == "__main__":
