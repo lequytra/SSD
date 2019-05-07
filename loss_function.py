@@ -45,7 +45,8 @@ def logSoftmax(con_true, con_pred):
 	return log_loss
 
 # https://github.com/pierluigiferrari/ssd_keras/blob/master/keras_loss_function/keras_ssd_loss.py
-def hard_neg_mining(neg_con_loss_all, num_neg_compute, confidence_loss):
+def hard_neg_mining(neg_con_loss_all, num_neg_compute, confidence_loss, 
+	batch_size, n_boxes):
 	'''
 	Compute negative loss for only negative boxes with highest confidence score
 	'''
@@ -72,8 +73,8 @@ def loss_function(y_true, y_pred):
 	Weighted sum between location loss and confidence loss
 	https://arxiv.org/pdf/1512.02325.pdf
 	Input:
-		y_true = (batch_size, n_boxes, num_classes + 4)
-		y_pred = (batch_size, n_boxes, num_classes + 4)
+		y_true = (batch_size, n_boxes, 1 + num_classes + 4)
+		y_pred = (batch_size, n_boxes, 1 + num_classes + 4)
 		4: number of offsets including x, y, w, h
 		n_boxes: total number of default boxes in each image
 	Output:
@@ -84,57 +85,59 @@ def loss_function(y_true, y_pred):
 	batch_size = K.shape(y_pred)[0]
 	n_boxes = K.shape(y_pred)[1]
 
-	# 1. Calculate location and confidence loss for all boxes
-	location_loss = tf.to_float(smoothL1(y_true[:, :, -4:], y_pred[:, :, -4:]))
-	confidence_loss = tf.to_float(logSoftmax(y_true[:, :, :-4], y_pred[:, :, :-4]))
+	if n_boxes == 0:
+		total_loss = 0
+	else:
+		# 1. Calculate location and confidence loss for all boxes
+		location_loss = tf.to_float(smoothL1(y_true[:, :, -4:], y_pred[:, :, -4:]))
+		confidence_loss = tf.to_float(logSoftmax(y_true[:, :, :-4], y_pred[:, :, :-4]))
 
-	# 2. Calculate confidence and location loss for positive classes
-		# Get the maximum score across positive classes, i.e logical matrix 
-	pos_mask = tf.to_float(tf.reduce_max(y_true[:, :, 1:-4], axis=-1))
+		# 2. Calculate confidence and location loss for positive classes
+			# Get the maximum score across positive classes, i.e logical matrix 
+		pos_mask = tf.to_float(tf.reduce_max(y_true[:, :, 1:-4], axis=-1))
 
-		# Calculate the positive confidence loss
-	pos_con_loss = K.sum(confidence_loss * pos_mask, -1) # Sum across boxes
+			# Calculate the positive confidence loss
+		pos_con_loss = K.sum(confidence_loss * pos_mask, -1) # Sum across boxes
 
-		# Calculate the positive location loss
-	pos_loc_loss = K.sum(location_loss * pos_mask, -1) # Sum across boxes
+			# Calculate the positive location loss
+		pos_loc_loss = K.sum(location_loss * pos_mask, -1) # Sum across boxes
 
-	# 3. Calculate the confidence loss for negative class
-	'''
-	Many default boxes are categorized as background, which 
-	will make the confidence loss imbalance. This is the reason
-	for hard negative mining
-	'''
-		# Create negative class mask
-	neg_mask = y_true[:, :, 0] # 0: background class
+		# 3. Calculate the confidence loss for negative class
+		'''
+		Many default boxes are categorized as background, which 
+		will make the confidence loss imbalance. This is the reason
+		for hard negative mining
+		'''
+			# Create negative class mask
+		neg_mask = y_true[:, :, 0] # 0: background class
+	
+			# Calculate the negative confidence loss
+		neg_con_loss_all = confidence_loss * neg_mask
 
-		# Calculate the negative confidence loss
-	neg_con_loss_all = confidence_loss * neg_mask
+			# Hard negative mining
+		num_pos = K.sum(pos_mask)
+		num_hard_neg = neg_pos_ratio * K.cast(num_pos, 'int32')
 
-		# Hard negative mining
-	num_pos = K.sum(pos_mask)
-	num_hard_neg = neg_pos_ratio * K.cast(num_pos, 'int32')
+			# Get the total number of negative default boxes
+		num_neg_loss = tf.count_nonzero(neg_con_loss_all, dtype=tf.int32)
 
-		# Get the total number of negative default boxes
-	num_neg_loss = tf.count_nonzero(neg_con_loss_all, dtype=tf.int32)
+			# Get the number of negative default boxes 3:1 ratio
+		num_neg_compute = K.minimum(num_hard_neg, num_neg_loss)
 
-		# Get the number of negative default boxes 3:1 ratio
-	num_neg_compute = K.minimum(num_hard_neg, num_neg_loss)
+			# Calculate negative loss
+			# If there are no negative boxes, negative loss is 0
+		neg_con_loss = K.switch(K.equal(num_neg_loss, tf.constant(0)), 
+        	tf.zeros([batch_size]),
+        	hard_neg_mining(neg_con_loss_all, 
+        		num_neg_compute, confidence_loss, batch_size, n_boxes))
 
-		# Calculate negative loss
-		# If there are no negative boxes, negative loss is 0
-	neg_con_loss = K.switch(K.equal(num_neg_loss, tf.constant(0)), 
-							tf.zeros([batch_size]),
-							hard_neg_mining(neg_con_loss_all, 
-								num_neg_compute, 
-								confidence_loss))
+		# 4. Calculate total confidence loss
+		con_loss = pos_con_loss + neg_con_loss
 
-	# 4. Calculate total confidence loss
-    con_loss = pos_con_loss + neg_con_loss
-
-	# 5. Calculate the total loss
-	num_pos = K.cast(num_pos, 'float32')
-	# In case there are no positive boxes
-	total_loss = (con_loss + alpha * pos_loc_loss) / K.max(1.0, num_pos)
+		# 5. Calculate the total loss
+		num_pos = K.cast(num_pos, 'float32')
+		# In case there are no positive boxes
+		total_loss = (con_loss + alpha * pos_loc_loss) / K.max(1.0, num_pos)
 
 	return total_loss
 	
