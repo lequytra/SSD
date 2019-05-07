@@ -70,8 +70,8 @@ class Parser():
                                 * (width_ratio / width) # Normalized
                 bbox[0][1] = (float) (ann['bbox'][1] + ann['bbox'][3]) / 2 / height \
                                 * (height_ratio / height) # Normalized
-                bbox[0][2] = (float) (ann['bbox'][2])
-                bbox[0][3] = (float) (ann['bbox'][3])
+                bbox[0][2] = (float) (ann['bbox'][2]) / width
+                bbox[0][3] = (float) (ann['bbox'][3]) / height
     
                 # Create a ground_truth item
                 gt = np.append(labels, bbox, axis = 1)
