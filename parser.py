@@ -117,7 +117,16 @@ class Parser():
             
         return im_collection
 
+    def load_data(self): 
+        """
+            Output: 
+                Return a tuple of image, label
+        """
+        label = parse_json()
+        load_img_paths()
+        im_collection = load_training_imgs()
 
+        return (im_collection, label)
 
 
 def main(): 
