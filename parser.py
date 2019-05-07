@@ -1,5 +1,6 @@
 from pycocotools.coco import COCO
-import numpy as np
+import numpy as 
+import matplot.pyplot as plt
 from tqdm import tqdm
 import os
 import json
@@ -98,18 +99,35 @@ class Parser():
         f= open(path,"w")
 
         for imgId in self.img_ids:
-            path = '{}/{}/{:012}.jpg\n'.format(self.dataDir, self.dataType, imgId)
-            f.write(path)
+            im_path = '{}/{}/{:012}.jpg\n'.format(self.dataDir, self.dataType, imgId)
+            f.write(im_path)
 
         f.close()
 
+    def load_imgs(fileName="imagePaths.txt"):
+         path = os.getcwd()
 
-'''
-if __name__ == "__main__":
+         path = path + fileName
+
+         im_collection = tuple()
+
+         with open(path) as f: 
+            im_path = f.readlines()
+            im_path = im_path.strip()
+
+            image = 
+
+
+
+def main(): 
     data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
     data_type = "val2017"
     p = Parser(data_dir, data_type)
     gt = p.parse_json()
 
-    print(gt[:10][0] == True)
-'''
+    print(gt[:10][0])
+
+
+if __name__ == "__main__":
+    main()
+
