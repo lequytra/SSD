@@ -5,10 +5,8 @@ import tensorflow as tf
 from tensorflow.image import draw_bounding_boxes
 import cv2
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import os
 import json
-import os
 
 class Parser():
     def __init__ (self, data_dir, data_type, resize_shape=(300,300,3)):
