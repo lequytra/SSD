@@ -2,6 +2,8 @@ import numpy as np
 from math import sqrt
 import tensorflow as tf 
 import keras.backend as K 
+from sklearn.model_selection import train_test_split
+import itertools as it 
 
 
 
@@ -13,7 +15,7 @@ class Encoder():
 				iou_thres=0.5,
 				min_scale=0.2, 
 				max_scale=0.9, 
-				aspect_ratio=[0.5, 1, 2], 
+				aspect_ratios=[0.5, 1, 2], 
 				n_predictions=6, 
 				prediction_size=[38, 19, 10, 5, 3, 1]): 
 		""" 
@@ -35,19 +37,21 @@ class Encoder():
 		self.y_truth = y_truth
 		self.im_width = input_shape[1]
 		self.n_layers = n_predictions
+		self.aspect_ratios = aspect_ratios
+		self.iou_thres = iou_thres
 		# Calculate the scale at each prediction layer
 		self.scales = np.linspace(start=min_scale, stop=max_scale, num=n_predictions)
 		self.map_size = prediction_size
-		self.default = generate_default_boxes()
+		self.default = self.generate_default_boxes()
 		self.background_id = 0
 		self.labels = y_truth[:, :-4]
 		self.boxes = y_truth[:, -4:]
-		self.iou_matrix = IoU(self.default, self.boxes)
-		self.matches = multi_matching()
+		self.iou_matrix = self.IoU()
+		self.matches = self.multi_matching()
 
 
 
-	def generate_default_boxes(): 
+	def generate_default_boxes(self): 
 
 		"""
 			Output: 
@@ -66,7 +70,7 @@ class Encoder():
 				x = (i + 0.5)/self.map_size[level]
 				y = (j + 0.5)/self.map_size[level]
 
-				for ratio in aspect_ratio: 
+				for ratio in self.aspect_ratios: 
 					box = np.empty(shape=(1, 4))
 
 					box[:, 0] = x
@@ -79,11 +83,13 @@ class Encoder():
 					box[:, 2] = w
 					box[:, 3] = h
 
-					self.default = np.concatenate((default, box), axis=0)
+					print(box)
+
+					self.default = np.concatenate((self.default, box), axis=0)
 
 		return self.default
 
-	def encode_format():
+	def encode_format(self):
 		"""
 
 		Output: 
@@ -103,7 +109,7 @@ class Encoder():
 
 		return encoded
 
-	def max_bipartite_matching(): 
+	def max_bipartite_matching(self): 
 		"""
 			Perform the maximum bipartite matching algorithm that matches the 
 			ground-truth box with a default with highest Jaccard index
@@ -116,10 +122,10 @@ class Encoder():
 
 		n_boxes = self.boxes.shape[0]
 		weight = self.iou_matrix
-		matched = np.zeros(shape(n_boxes,))
+		matched = np.zeros((n_boxes,))
 
 		for i in range(n_boxes): 
-			max_index = np.unravel_index(np.argmax(weight, axis=None), iou_matrix.shape)
+			max_index = np.unravel_index(np.argmax(weight, axis=None), self.iou_matrix.shape)
 			gt_coord = max_index[1]
 			db_coord = max_index[0]
 			matched[gt_coord] = db_coord
@@ -130,7 +136,7 @@ class Encoder():
 		return matched
 
 
-	def multi_matching(): 
+	def multi_matching(self): 
 		"""
 			Match the default boxes to any ground-truth boxes with 
 			iou >= iou_thres
@@ -140,7 +146,7 @@ class Encoder():
 				- matches: The index of the ground-truth box matched
 								with each default box (n_default,)
 		"""
-		matched = max_bipartite_matching()
+		matched = self.max_bipartite_matching()
 		highest_box = np.max(self.iou_matrix, axis=1)
 
 		assert highest_box.shape[0] == self.default.shape[0]
@@ -155,7 +161,7 @@ class Encoder():
 
 		return self.matches
 
-	def IoU(): 
+	def IoU(self): 
 		"""
 
 			Output: 
@@ -189,25 +195,28 @@ class Encoder():
 
 		# Union of area
 
-		union = area_default + area_truth - intersect
+		union = area_default + np.transpose(area_truth) - intersect
+
+		# Avoid division by 0
+		union = np.maximum(union, 1e-18)
 
 		self.iou_matrix = np.maximum(intersect/union, 0)
 
 		return self.iou_matrix
 
-	def get_encoded_data():
+	def get_encoded_data(self):
 
 		n_default = self.default.shape[0]
 
 		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
-		encoded = np.empty(shape=(0, numClasses + 4))
+		encoded = np.empty(shape=(0, self.numClasses + 4))
 
 		for i in range(n_default):
 			
 			matched_gt =  self.matches[i]
 			# If the default box is not matched with any ground-truth
 			if matched_gt == -1: 
-				encoded_y = np.zeros(shape=(self.numClasses + 4))
+				encoded_y = np.zeros(shape=(1, self.numClasses + 4))
 				encoded = np.append(encoded, encoded_y, axis=0)
 
 			else: 
@@ -216,16 +225,16 @@ class Encoder():
 				match = self.boxes[matched_gt] # (x, y, w, h) normalized
 
 				# Calculate the offset of the matched ground-truth to the default box
-				xy_offset = (match[:2] - curr_default[:2])/curr_default[2:]
-				wh_offset = np.log(match[2:]/curr_default[2:])
+				xy_offset = match[:2] - curr_default[:2]
+				wh_offset = match[2:]/curr_default[2:]
 
 				assert xy_offset.shape == (2,)
 
 				label = self.labels[matched_gt, :]
 
 				# Append to offset (x, y, w, h)
-				encoded_y = np.append(label, xy_offset, wh_offset)
-				encoded_y = np.expand_dims(axis=0)
+				encoded_y = np.append(label, [xy_offset, wh_offset])
+				encoded_y = np.expand_dims(encoded_y, axis=0)
 
 				assert encoded_y.shape == (1, self.numClasses + 4)
 
@@ -234,6 +243,9 @@ class Encoder():
 		# The default that is not matched with any ground-truth is considered
 		# the background class
 		background_class = self.matches < 0
+		background_class = np.expand_dims(background_class, axis=1)
+		print(background_class.shape)
+		print(encoded.shape)
 
 		# Append background class to produce the final encoded labels
 		encoded = np.append(background_class, encoded, axis=1)
@@ -241,3 +253,47 @@ class Encoder():
 		assert encoded.shape == (n_default, 1 + self.numClasses + 4)
 
 		return encoded
+
+def main(Y): 
+	input_shape=(300, 300, 3)
+	numClasses = 10
+	iou_thres=0.5 # for default and gt matching
+	nms_thres=0.45 # IoU threshold for non-maximal suppression
+	score_thres=0.01 # threshold for classification scores
+	top_k=200 # the maximum number of predictions kept per image
+	min_scale=0.2 # the smallest scale of the feature map
+	max_scale=0.9 # the largest scale of the feature map
+	aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated
+	n_predictions=6 # the number of prediction blocks
+	prediction_size=[37, 18, 10, 5, 3, 1] # sizes of feature maps at each level
+
+	encode = Encoder(y_truth=Y, 
+                numClasses=numClasses, 
+                iou_thres=iou_thres,
+                min_scale=min_scale, 
+                max_scale=max_scale, 
+                aspect_ratios=aspect_ratios, 
+                n_predictions=n_predictions, 
+                prediction_size=prediction_size)
+	Y = encode.get_encoded_data()
+	
+
+	return Y
+
+if __name__ == '__main__':
+	
+
+	X = np.random.rand(shape=(1000, 300, 300, 3))
+	Y = np.random.rand(shape=(1000, 14))
+
+	X_train, Y_train, X_test, Y_test = train_test_split(X, Y, test_size=0.2)
+
+	Y_train = main(Y_train)
+	Y_test = main(Y_test)
+	
+
+	print(X_train.shape)
+	print(Y_train.shape)
+	print(type(X_train))
+	print(type(Y_train))
+

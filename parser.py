@@ -122,9 +122,9 @@ class Parser():
             Output: 
                 Return a tuple of image, label
         """
-        label = parse_json()
-        load_img_paths()
-        im_collection = load_training_imgs()
+        label = self.parse_json()
+        self.load_img_paths()
+        im_collection = self.load_training_imgs()
 
         return (im_collection, label)
 
@@ -150,11 +150,9 @@ def main():
 
     coords = tf.constant(bbox_coord)
 
-    drawed = tf.image.draw_bounding_boxes(images, coords)
-    plt.imshow(drawed[0])
+    plt.imshow(images[0])
 
 
 
 if __name__ == "__main__":
     main()
-
