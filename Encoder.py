@@ -135,8 +135,8 @@ class Encoder():
 				match = self.boxes[matched_gt] # (x, y, w, h) normalized
 
 				# Calculate the offset of the matched ground-truth to the default box
-				xy_offset = match[:2] - curr_default[:2]
-				wh_offset = match[2:]/curr_default[2:]
+				xy_offset = (match[:2] - curr_default[:2])/curr_default[2:]
+				wh_offset = np.log(match[2:]/curr_default[2:])
 
 				assert xy_offset.shape == (2,)
 

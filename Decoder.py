@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.math import argmax, exp, reduce_max
 from tensorflow.image import non_max_suppression 
 import keras.backend as K 
+from box_utils import generate_default_boxes
 
 class Decoder(): 
 	def __init__(self, 
@@ -51,8 +52,8 @@ class Decoder():
 			curr_pred = self.bboxes[i]
 			curr_db = self.defaults[i]
 
-			xy_abs = curr_pred[:2] + curr_db[:2]
-			wh_abs = curr_pred[2:]*curr_db[2:]
+			xy_abs = curr_pred[:2]*curr_db[2:] + curr_db[:2]
+			wh_abs = K.exp(curr_pred[2:])*curr_db[2:]
 
 			xy2_abs = xy_abs + wh_abs
 			
@@ -126,7 +127,7 @@ def main():
 
 	defaults = generate_default_boxes(n_layers=n_predictions, 
 										min_scale=min_scale,
-										max_scale=max_scale 
+										max_scale=max_scale,
 										map_size=prediction_size, 
 										aspect_ratios=[0.5, 1, 2])
 
