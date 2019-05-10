@@ -58,7 +58,7 @@ class Encoder():
 				- default: a 2D array (#defaults, 4) containing the coordinates [x, y, h, w] 
 							of all default boxes relative to the image size. 
 		"""
-		self.default = np.empty(shape=(1, 4))
+		self.default = np.empty(shape=(0, 4))
 
 		for level in range(self.n_layers):
 
@@ -83,10 +83,8 @@ class Encoder():
 					box[:, 2] = w
 					box[:, 3] = h
 
-					print(box)
-
 					self.default = np.concatenate((self.default, box), axis=0)
-
+					
 		return self.default
 
 	def encode_format(self):
@@ -194,7 +192,6 @@ class Encoder():
 		area_truth = w2*h2
 
 		# Union of area
-
 		union = area_default + np.transpose(area_truth) - intersect
 
 		# Avoid division by 0
@@ -283,17 +280,12 @@ def main(Y):
 if __name__ == '__main__':
 	
 
-	X = np.random.rand(shape=(1000, 300, 300, 3))
-	Y = np.random.rand(shape=(1000, 14))
+	X = np.random.rand(1000, 300, 300, 3)
+	Y = np.random.rand(1000, 14)
 
-	X_train, Y_train, X_test, Y_test = train_test_split(X, Y, test_size=0.2)
-
-	Y_train = main(Y_train)
-	Y_test = main(Y_test)
+	Y_train = main(Y)
 	
-
-	print(X_train.shape)
 	print(Y_train.shape)
-	print(type(X_train))
+
 	print(type(Y_train))
 
