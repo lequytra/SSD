@@ -79,11 +79,22 @@ class Decoder():
 	def nms(self): 
 		max_scores = reduce_max(self.labels, axis=1)
 
-		nms_boxes_idx = non_max_suppression(boxes=self.decoded[:, -4:], 
+		print("score shape: {}".format(max_scores.shape))
+
+		max_scores = tf.cast(max_scores, dtype=tf.float32)
+
+		boxes = tf.cast(self.decoded[:, -4:], dtype=tf.float32)
+
+		print("boxes shape: {}".format(boxes.shape))
+
+		nms_boxes_idx = non_max_suppression(boxes=boxes, 
 											scores=max_scores,
 											max_output_size=self.top_k, 
 											iou_threshold=self.nms_thres, 
 											score_threshold=self.score_thres)
+
+		print("nms boxes indices shape: {}".format(nms_boxes_idx.shape))
+
 		return nms_boxes_idx
 
 
@@ -93,7 +104,8 @@ class Decoder():
 		pred_labels = argmax(self.labels[:, self.background_id + 1:], axis=1)
 		selected_boxes_idx = self.nms()
 
-		final_pred = tf.concat(pred_labels[selected_boxes_idx], self.decoded[selected_boxes_idx])
+		final_pred = tf.concat(tf.gather(pred_labels, selected_boxes_idx), 
+								tf.gather(self.decoded[:, -4:], selected_boxes_idx))
 
 		return final_pred
 			
@@ -112,26 +124,22 @@ def main():
 
 	Y = np.random.rand(1000, numClasses + 4)
 
-	encoder = Encoder(y_truth=Y, 
-	                numClasses=numClasses, 
-	                iou_thres=iou_thres,
-	                min_scale=min_scale, 
-	                max_scale=max_scale, 
-	                aspect_ratios=aspect_ratios, 
-	                n_predictions=n_predictions, 
-	                prediction_size=prediction_size)
-	defaults = encoder.default
+	defaults = generate_default_boxes(n_layers=n_predictions, 
+										min_scale=min_scale,
+										max_scale=max_scale 
+										map_size=prediction_size, 
+										aspect_ratios=[0.5, 1, 2])
 
 	n_default = defaults.shape[0]
 
 	predictions = np.random.rand(n_default, numClasses + 5)
 
 	decoder = Decoder(predictions=predictions, 
-					defaults=defaults, 
-					numClasses=numClasses, 
-					nms_thres=nms_thres, 
-					score_thres=score_thres, 
-					top_k=top_k)
+						defaults=defaults, 
+						numClasses=numClasses, 
+						nms_thres=np.float32(0), 
+						score_thres=np.float32(0), 
+						top_k=top_k)
 
 	return decoder
 

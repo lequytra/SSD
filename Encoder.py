@@ -5,19 +5,18 @@ import keras.backend as K
 from sklearn.model_selection import train_test_split
 import itertools as it 
 
+from box_utils import IoU, generate_default_boxes
+
 
 
 class Encoder(): 
 	def __init__(self, 
 				y_truth, 
+				default, 
 				numClasses=10,
 				input_shape=(300,300,3),
 				iou_thres=0.5,
-				min_scale=0.2, 
-				max_scale=0.9, 
-				aspect_ratios=[0.5, 1, 2], 
-				n_predictions=6, 
-				prediction_size=[38, 19, 10, 5, 3, 1]): 
+				aspect_ratios=[0.5, 1, 2]): 
 		""" 
 			Input: 
 				- input_shape: the shape of the input image
@@ -32,60 +31,15 @@ class Encoder():
 									The number of element must be equal to n_predictions
 		"""
 
-		self.im_height = input_shape[0]
 		self.numClasses = numClasses 
-		self.y_truth = y_truth
-		self.im_width = input_shape[1]
-		self.n_layers = n_predictions
-		self.aspect_ratios = aspect_ratios
 		self.iou_thres = iou_thres
-		# Calculate the scale at each prediction layer
-		self.scales = np.linspace(start=min_scale, stop=max_scale, num=n_predictions)
-		self.map_size = prediction_size
-		self.default = self.generate_default_boxes()
+		self.default = default
 		self.background_id = 0
 		self.labels = y_truth[:, :-4]
 		self.boxes = y_truth[:, -4:]
-		self.iou_matrix = self.IoU()
+		self.iou_matrix = IoU(self.default, self.boxes)
 		self.matches = self.multi_matching()
 
-
-
-	def generate_default_boxes(self): 
-
-		"""
-			Output: 
-				- default: a 2D array (#defaults, 4) containing the coordinates [x, y, h, w] 
-							of all default boxes relative to the image size. 
-		"""
-		self.default = np.empty(shape=(0, 4))
-
-		for level in range(self.n_layers):
-
-			scale = self.scales[level] 
-			# For each pixel location in the feature map
-			for i, j in it.product(range(self.map_size[level]), repeat=2): 
-				
-				# Calculate the center of each default box
-				x = (i + 0.5)/self.map_size[level]
-				y = (j + 0.5)/self.map_size[level]
-
-				for ratio in self.aspect_ratios: 
-					box = np.empty(shape=(1, 4))
-
-					box[:, 0] = x
-					box[:, 1] = y
-
-					# Calculate the width and height
-					w = scale*sqrt(ratio)
-					h = scale/sqrt(ratio)
-
-					box[:, 2] = w
-					box[:, 3] = h
-
-					self.default = np.concatenate((self.default, box), axis=0)
-					
-		return self.default
 
 	def encode_format(self):
 		"""
@@ -159,47 +113,6 @@ class Encoder():
 
 		return self.matches
 
-	def IoU(self): 
-		"""
-
-			Output: 
-				- iou:  a 2D tensor of shape (n_default, n_truth), returning the
-							Jaccard index of each default boxes for
-							every ground-truth boxes. 
-		"""
-
-		x1, y1, w1, h1 = np.split(self.default, 4, axis=1)
-		x2, y2, w2, h2 = np.split(self.boxes, 4, axis=1)
-
-		x12 = x1 + w1
-		x22 = x2 + w2
-		y12 = y1 + h1
-		y22 = y2 + h2
-
-		n_default = self.default.shape[0]
-		n_truth = self.y_truth.shape[0]
-
-		topleft_x = np.maximum(x1,np.transpose(x2))
-		topleft_y = np.maximum(y1,np.transpose(y2))
-
-		botright_x = np.minimum(x12,np.transpose(x22))
-		botright_y = np.minimum(y12,np.transpose(y22))
-
-		intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
-
-		# Calculate areas of every default boxes and ground-truth boxes
-		area_default = w1*h1
-		area_truth = w2*h2
-
-		# Union of area
-		union = area_default + np.transpose(area_truth) - intersect
-
-		# Avoid division by 0
-		union = np.maximum(union, 1e-18)
-
-		self.iou_matrix = np.maximum(intersect/union, 0)
-
-		return self.iou_matrix
 
 	def get_encoded_data(self):
 
@@ -241,8 +154,7 @@ class Encoder():
 		# the background class
 		background_class = self.matches < 0
 		background_class = np.expand_dims(background_class, axis=1)
-		print(background_class.shape)
-		print(encoded.shape)
+
 
 		# Append background class to produce the final encoded labels
 		encoded = np.append(background_class, encoded, axis=1)
@@ -264,14 +176,17 @@ def main(Y):
 	n_predictions=6 # the number of prediction blocks
 	prediction_size=[37, 18, 10, 5, 3, 1] # sizes of feature maps at each level
 
+	default = generate_default_boxes(n_layers=n_predictions, 
+									min_scale=min_scale, 
+									max_scale=max_scale, 
+									map_size=prediction_size,
+									aspect_ratios=aspect_ratios)
 	encode = Encoder(y_truth=Y, 
-                numClasses=numClasses, 
-                iou_thres=iou_thres,
-                min_scale=min_scale, 
-                max_scale=max_scale, 
-                aspect_ratios=aspect_ratios, 
-                n_predictions=n_predictions, 
-                prediction_size=prediction_size)
+					default=default,
+	                numClasses=numClasses, 
+	                iou_thres=iou_thres,
+	                aspect_ratios=aspect_ratios)
+
 	Y = encode.get_encoded_data()
 	
 
