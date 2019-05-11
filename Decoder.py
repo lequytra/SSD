@@ -103,13 +103,26 @@ class Decoder():
 
 		# Get the class_id with the highest scores
 		pred_labels = argmax(self.labels[:, self.background_id + 1:], axis=1)
-		selected_boxes_idx = self.nms()
+		# Cast pred_labels to float64 for compatibility
+		pred_labels = tf.cast(pred_labels, dtype=tf.float64)
+		pred_labels = tf.expand_dims(pred_labels, axis=1)
+		# selected_boxes_idx = self.nms()
 
-		final_pred = tf.concat(tf.gather(pred_labels, selected_boxes_idx), 
-								tf.gather(self.decoded[:, -4:], selected_boxes_idx))
-
+		# final_pred = tf.concat(tf.gather(pred_labels, selected_boxes_idx), 
+		# 						tf.gather(self.decoded[:, -4:], selected_boxes_idx))
+		final_pred = tf.concat([pred_labels, self.decoded[:, -4:]], axis=1)
 		return final_pred
-			
+
+def tensor_to_array(tensor1):
+    '''Convert tensor object to numpy array'''
+    array1 = SESS.run(tensor1) 
+    return array1.astype("float32")
+
+def array_to_tensor(array):
+    '''Convert numpy array to tensor object'''
+    tensor_data = tf.convert_to_tensor(array, dtype=tf.float32)
+    return tensor_data
+
 def main(): 
 	input_shape=(300, 300, 3)
 	numClasses = 10
@@ -149,7 +162,7 @@ if __name__ == '__main__':
 
 	results = decoder.prediction_out()
 
-	print(result.shape)
+	print(results.shape)
 	print(type(results))
 
 
