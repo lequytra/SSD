@@ -217,7 +217,7 @@ def main(Y):
 
 	return Y
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 	
 
 	# X = np.random.rand(100, 300, 300, 3)

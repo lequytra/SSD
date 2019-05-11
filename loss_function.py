@@ -137,7 +137,22 @@ def loss_function(y_true, y_pred):
 		# 5. Calculate the total loss
 		num_pos = K.cast(num_pos, 'float32')
 		# In case there are no positive boxes
-		total_loss = (con_loss + alpha * pos_loc_loss) / K.max(1.0, num_pos)
+		total_loss = (con_loss + alpha * pos_loc_loss) / tf.math.maximum(1.0, num_pos)
 
-	return total_loss
+	return int(total_loss)
+
+def main(): 
+	pred = np.random.rand(10, 8, 15)
+	true = np.random.rand(10, 8, 15)
+
+	losses = loss_function(true, pred)
+
+	return losses
+
+if __name__ == '__main__':
+	loss = main()
+
+	print(type(loss))
+	print(type(loss[0]))
+	print(loss.shape)
 	
