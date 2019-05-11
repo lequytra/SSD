@@ -233,16 +233,16 @@ def build_SSD300(input_shape,
 	if mode == 'training':
 	    model = Model(inputs=input_img, outputs=predictions, name='SSD-300')
 
-	elif mode == 'inference': 
-		encoder = Encoder()
-		default = encoder.default
-		predictions = Decoder(predictions=predictions,
-								defaults=default,
-								numClasses=numClasses - 1, 
-								nms_thres=nms_thres, 
-								score_thres=score_thres, 
-								top_k=top_k).nsm()
-		model = Model(inputs=input_img, outputs=predictions, name='SSD-300')
+	# elif mode == 'inference': 
+	# 	encoder = Encoder()
+	# 	default = encoder.default
+	# 	predictions = Decoder(predictions=predictions,
+	# 							defaults=default,
+	# 							numClasses=numClasses - 1, 
+	# 							nms_thres=nms_thres, 
+	# 							score_thres=score_thres, 
+	# 							top_k=top_k).nsm()
+	# 	model = Model(inputs=input_img, outputs=predictions, name='SSD-300')
 
 	return model 
 
@@ -252,9 +252,9 @@ def build_SSD300(input_shape,
 # SSD300 = build_SSD300((300, 300, 3), 10)
 # SSD300.compile(optimizer=adam, loss='mean_squared_error', 
 # 		metrics=['accuracy'])
-# (X_train, Y_train), (X_test, Y_test) = build_inputs()
-# train(SSD300, X_train, Y_train, X_test, Y_test)
-# SSD300.fit(X_train, Y_train, validation_data=(X_train, Y_train), epochs=3)
+# # (X_train, Y_train), (X_test, Y_test) = build_inputs()
+# # train(SSD300, X_train, Y_train, X_test, Y_test)
+# # SSD300.fit(X_train, Y_train, validation_data=(X_train, Y_train), epochs=3)
 # SSD300.summary()
 # plot_model(SSD300, to_file='model1.png')
 

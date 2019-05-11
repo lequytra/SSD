@@ -15,8 +15,7 @@ class Encoder():
 				default, 
 				numClasses=10,
 				input_shape=(300,300,3),
-				iou_thres=0.5,
-				aspect_ratios=[0.5, 1, 2]): 
+				iou_thres=0.5): 
 		""" 
 			Input: 
 				- input_shape: the shape of the input image
@@ -163,6 +162,27 @@ class Encoder():
 
 		return encoded
 
+def encode_batch(y_truth, 
+				default, 
+				numClasses=10,
+				input_shape=(300,300,3),
+				iou_thres=0.5): 
+	
+	func = lambda Y : Encoder(y_truth=Y, 
+							default=default,
+			                numClasses=numClasses, 
+			                input_shape=input_shape,
+			                iou_thres=iou_thres).get_encoded_data()
+
+	encoded_all = [func(Y) for Y in y_truth]
+
+	encoded_all = np.array(encoded_all)
+
+	return encoded_all
+
+
+
+
 def main(Y): 
 	input_shape=(300, 300, 3)
 	numClasses = 10
@@ -181,26 +201,31 @@ def main(Y):
 									max_scale=max_scale, 
 									map_size=prediction_size,
 									aspect_ratios=aspect_ratios)
-	encode = Encoder(y_truth=Y, 
+	# encode = Encoder(y_truth=Y, 
+	# 				default=default,
+	#                 numClasses=numClasses, 
+	#                 iou_thres=iou_thres,
+	#                 aspect_ratios=aspect_ratios)
+
+	# Y = encode.get_encoded_data()
+
+	Y = encode_batch(y_truth=Y, 
 					default=default,
 	                numClasses=numClasses, 
-	                iou_thres=iou_thres,
-	                aspect_ratios=aspect_ratios)
-
-	Y = encode.get_encoded_data()
-	
+	                input_shape=(300,300,3),
+	                iou_thres=iou_thres)
 
 	return Y
 
 if __name__ == '__main__':
 	
 
-	X = np.random.rand(1000, 300, 300, 3)
-	Y = np.random.rand(1000, 14)
+	# X = np.random.rand(100, 300, 300, 3)
+	# Y = np.random.rand(100, 3, 14)
 
-	Y_train = main(Y)
+	# Y_train = main(Y)
 	
-	print(Y_train.shape)
+	# print(Y_train.shape)
 
-	print(type(Y_train))
+	# print(type(Y_train))
 
