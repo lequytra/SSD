@@ -145,7 +145,6 @@ def main():
     data_type = "val2017"
     p = Parser(data_dir, data_type)
     gt = p.parse_json()
-    f = open("/Users/ngophuongnhi/Desktop/imagePaths.txt", "w+")
 
     p.load_img_paths()
 
