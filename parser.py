@@ -101,7 +101,8 @@ class Parser():
         else: 
             self.fileName = fileName + ".txt"
 
-        path = path + '/' + self.fileName
+        path = os.path.join(path, self.fileName)
+
         f= open(path,"w+")
 
         for imgId in self.img_ids:
@@ -113,8 +114,6 @@ class Parser():
     def load_training_imgs(self):
         path = os.getcwd()
         path = os.path.join(path, self.fileName)
-
-        print(path)
 
         im_collection = []
 
@@ -166,5 +165,5 @@ def main():
 
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     # main()
