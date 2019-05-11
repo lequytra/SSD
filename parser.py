@@ -79,9 +79,12 @@ class Parser():
 
                     # Create a ground_truth item
                     gt = np.append(labels, bbox, axis=1)
+
                     batch = np.append(batch, gt, axis=0)
+
             self.ground_truth.append(batch)
-        return self.ground_truth
+
+        return np.array(self.ground_truth)
 
 
     def load_img_paths(self, fileName=None):
@@ -109,7 +112,9 @@ class Parser():
 
     def load_training_imgs(self):
         path = os.getcwd()
-        path = path + self.fileName
+        path = os.path.join(path, self.fileName)
+
+        print(path)
 
         im_collection = []
 
@@ -125,7 +130,7 @@ class Parser():
 
                 im_collection.append(image)
             
-        return im_collection
+        return np.array(im_collection)
 
     def load_data(self): 
         """
@@ -140,26 +145,23 @@ class Parser():
 
 
 def main(): 
-    data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
-    #data_dir = "/Users/tranle/mscoco"
-    data_type = "val2017"
-    p = Parser(data_dir, data_type)
-    gt = p.parse_json()
+    data_dir = "/Users/tranle/mscoco"
+    training_data = "val2017"
+    # Initialize a parser object
+    parser = Parser(data_dir, training_data)
 
-    p.load_img_paths()
+    # Load images and annotations for the image
+    # For now, we load only 10 first classes and images are resize to (300,300,3) 
+    # for training purposes
 
-    im_collection = p.load_training_imgs()
-    bbox_im = [im_collection[:10]]
-    bbox_coord = gt[:10][-4:]
-    print(type(im_collection))
-    print(len(im_collection))
-    images = tf.constant(im_collection)
-    bbox_coord[:,2] += bbox_coord[:, 0]
-    bbox_coord[:, 3] += bbox_coord[:, 1]
+    X, Y = parser.load_data()
 
-    coords = tf.constant(bbox_coord)
+    # X = np.array(X)
+    Y = np.array(Y)
 
-    plt.imshow(images[0])
+    print("Shape of parsed images: {}".format(X.shape))
+    print("Shape of parsed labels: {}".format(Y.shape))
+    print("Shape of one label: {}".format(Y[0].shape))
 
 
 
