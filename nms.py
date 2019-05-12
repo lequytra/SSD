@@ -1,5 +1,5 @@
 import numpy as np 
-from box_utils import IoU
+
 
 def score_suppres(Y_pred, 
 					numClasses=10,
@@ -8,18 +8,21 @@ def score_suppres(Y_pred,
 		Eliminate all box of background classes and classes with highest
 			score smaller than threshold
 	"""
-	Y_suppressed = np.empty(shape=(0, numClasses + 4))
+	# Get all label predictions
+	labels = y_pred[:, 1:numClasses + 1]
+	# Find the highest score in each class
+	max_label = np.amax(labels, axis=1)
 
-	# Find max scores
-	max_scores = np.max(Y_pred[:, :numClasses + 2], axis=1)
+	# For each box that has highest scores lower than threshold, 
+	# Set the background to 1
+	Y_pred[max_label < score_thres, 0] = 1
 
-	max_indices = np.argmax(Y_pred[:, :numClasses + 2], axis=1)
+	# find the class with the highest scores
+	highest_class = np.argmax(Y_pred[:, : numClasses + 1], axis=1)
+	# If it is most likely to be background, set background to 1
+	Y_pred[highest_class == 0] = 1
 
-	# Set items with low class score to -1
-	Y_pred[max_scores < score_thres] = -1
-	# Set items of background class to -1
-	Y_pred[max_indices == 0] = -1
-
+	return Y_pred
 
 def nms(Y_pred,
 		numClasses=10, 
@@ -29,7 +32,7 @@ def nms(Y_pred,
 		Input: 
 			- Y_pred 	: a numpy array of all predictions
 				Must be in the format (n_default, 1 + numClasses + 4)
-			- numClasses: the number of classes predicted
+			- numClasses: the number of boxes predicted
 			- nms_thres : threshold for non-maximum suppression
 			- score_thres: the threshold for class scores
 
@@ -41,11 +44,9 @@ def nms(Y_pred,
 	n_boxes = Y_pred.shape[0]
 	background_id = 0
 	background = Y_pred[:, 0]
-	print("background shape: {}".format(background.shape))
 	scores = Y_pred[:, 1:numClasses+1]
 
 	max_scores = np.max(scores, axis=1)
-	print("max_scores shape: {}".format(max_scores.shape))
 	# Suppress all predictions with the highest class score smaller than threshold
 	background[max_scores < score_thres] = 1
 	background = np.expand_dims(background, axis=1)
@@ -70,39 +71,28 @@ def nms(Y_pred,
 				box = boxes[i]
 				# If the current box is a background class or 
 				# have confidence score of 0
-				print("Curr box shape: {}".format(box.shape))
-				curr_coords = box[-4:]
-				curr_background = box[0]
-				curr_scores = box[1:-4]
-				print("Curr scores shape: {}".format(curr_scores.shape))
+
+				curr_background, curr_scores, curr_coords = box
 				if curr_background == 1 or curr_scores[c] == 0: 
 					continue
 				else: 
-					print("remaining: {}".format(boxes[i+1:].shape))
 					remaining_boxes = boxes[i + 1:]
 
-					remaining_coords = np.empty(shape=(0, 4))
 					for b in remaining_boxes: 
 						_, _, coord = b
 						coord = np.expand_dims(coord, axis=0)
-						remaining_coords = np.append(remaining_coords, coord, axis=0)
 
+						# _, _, curr_coords = box
 
-					print("shape of remaining coords: {}".format(remaining_coords.shape))
-					print("remaining coords: {}".format(remaining_coords))
+						# Expand the shape of current coords to (1, 4)
+						curr_coords = np.reshape(curr_coords, (-1, 4))
 
-					# _, _, curr_coords = box
+						iou_scores = iou(curr_coords, coord)
+						print("IOU: {}".format(iou_scores[0]))
 
-					# Expand the shape of current coords to (1, 4)
-					curr_coords = np.expand_dims(curr_coords, axis=0)
-					print("Shape of curr_coords: {}".format(curr_coords.shape))
-
-					iou_scores = IoU(curr_coords, remaining_coords)
-
-					print("Shape of iou_matrix: {}".format(iou_scores.shape))
-
-					# for the remaining boxes, suppress all that have high overlapping area
-					boxes[i+2:, background_id, iou_scores > nms_thres] = 1
+						# for the remaining boxes, suppress all that have high overlapping area
+						b[background_id][0] = 1 if iou_scores > nms_thres else b[background_id][0]
+						print("background_id: {}".format(b[background_id][0]))
 
 	# Unzip the boxes variable
 	boxes = zip(*boxes)
@@ -114,10 +104,93 @@ def nms(Y_pred,
 	for i in boxes: 
 		Y_suppressed = np.append(Y_suppressed, i, axis=1)
 
-	print("Initial number of boxes: {}".format(n_boxes))
-	print("Shape after suppressed: {}".format(Y_suppressed.shape))
+	print(Y_suppressed)
+	print(type(Y_suppressed))
 
 	return Y_suppressed
+
+def delete_background(Y_pred, numClasses): 
+	"""
+		A method to delete all background predictions
+	"""
+
+	result = np.empty(shape=(0, numClasses + 1))
+
+	for pred in Y_pred: 
+		if pred[0] != 1: 
+			result = np.append(result, pred[1:])
+
+	return result
+
+def top_k(Y_pred, top_k=200): 
+	"""
+		Return only the top k highest boxes. Boxes should not contain background class
+	"""
+	n_pred = Y_pred.shape[0]
+
+	if n_pred < top_k: 
+		return Y_pred
+	# Find the highest score for each box
+	max_scores = np.amax(Y_pred[1: ])
+
+	scores = Y_pred[:, :numClasses]
+	coords = Y_pred[:, -4:]
+
+	boxes_zip = zip(max_scores, background, scores, coords)
+
+	boxes = [(max_scores, scores, coords) for max_scores, scores, coords in boxes_zip]
+
+	boxes.sort(key= lambda curr: curr[0], reverse=True)
+	result = np.empty(shape(top_k, 0))
+
+	#Take only the highest k boxes: 
+
+	boxes = boxes[:top_k]
+	# Unzip boxes
+	boxes = zip(*boxes)
+
+	for i in boxes: 
+		result = np.append(result, i, axis=1)
+
+	return result
+
+
+
+
+def iou(box1, box2): 
+	"""
+		Input: 
+			- box1: an array of coordinates of box1 boxes
+			- box2   : an array of coordinates of box2round-truth boxes
+			coordinates are in format (x_l, y_l, x_r, y_r)
+		Output: 
+			- iou:  a 2D tensor of shape (n_box1, n_truth), returning the
+						Jaccard index of each box2 boxes for
+						every ground-truth boxes. box2	"""
+
+	x1, y1, x12, y12 = np.split(box1, 4, axis=1)
+	x2, y2, x22, y22 = np.split(box2, 4, axis=1)
+
+
+	topleft_x = np.maximum(x1,x2)
+	topleft_y = np.maximum(y1,y2)
+
+	botright_x = np.minimum(x12,x22)
+	botright_y = np.minimum(y12,y22)
+
+	intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
+	# Calculate areas of every box1 boxes and ground-truth boxes
+	area = (x12 - x1)*(y12 - y1) + (x2 - x22)*(y2 - y22)
+
+	# Union of area
+	union = area - intersect
+	# Avoid division by 0
+	union = np.maximum(union, 1e-18)
+
+	iou_matrix = np.maximum(intersect/union, 0)
+
+	return iou_matrix
+
 
 def call(): 
 	Y_pred = np.random.rand(11, 15)
