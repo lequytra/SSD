@@ -15,7 +15,10 @@ def score_suppres(Y_pred,
 
 	max_indices = np.argmax(Y_pred[:, :numClasses + 2], axis=1)
 
-	# Find boxes with high probability of being a background
+	# Set items with low class score to -1
+	Y_pred[max_scores < score_thres] = -1
+	# Set items of background class to -1
+	Y_pred[max_indices == 0] = -1
 
 
 def nms(Y_pred,
