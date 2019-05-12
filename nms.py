@@ -1,6 +1,21 @@
 import numpy as np 
 from box_utils import IoU
 
+def score_suppres(Y_pred, 
+					numClasses=10,
+					score_thres=0.01): 
+	"""
+		Eliminate all box of background classes and classes with highest
+			score smaller than threshold
+	"""
+	Y_suppressed = np.empty(shape=(0, numClasses + 4))
+
+	# Find max scores
+	max_scores = np.max(Y_pred[:, :numClasses + 2], axis=1)
+
+	max_indices = np.argmax(Y_pred[:, :numClasses + 2], axis=1)
+
+	# Find boxes with high probability of being a background
 
 
 def nms(Y_pred,
@@ -52,13 +67,15 @@ def nms(Y_pred,
 				box = boxes[i]
 				# If the current box is a background class or 
 				# have confidence score of 0
-				print("Curr box shape: {}".format(len(box)))
-				curr_background, curr_scores, curr_coords = box
-				print("Curr background shape: {}".format(curr_background.shape))
+				print("Curr box shape: {}".format(box.shape))
+				curr_coords = box[-4:]
+				curr_background = box[0]
+				curr_scores = box[1:-4]
+				print("Curr scores shape: {}".format(curr_scores.shape))
 				if curr_background == 1 or curr_scores[c] == 0: 
 					continue
 				else: 
-					print("remaining: {}".format(len(boxes[i+1:])))
+					print("remaining: {}".format(boxes[i+1:].shape))
 					remaining_boxes = boxes[i + 1:]
 
 					remaining_coords = np.empty(shape=(0, 4))
@@ -67,10 +84,12 @@ def nms(Y_pred,
 						coord = np.expand_dims(coord, axis=0)
 						remaining_coords = np.append(remaining_coords, coord, axis=0)
 
+
 					print("shape of remaining coords: {}".format(remaining_coords.shape))
 					print("remaining coords: {}".format(remaining_coords))
 
-					_, _, curr_coords = box
+					# _, _, curr_coords = box
+
 					# Expand the shape of current coords to (1, 4)
 					curr_coords = np.expand_dims(curr_coords, axis=0)
 					print("Shape of curr_coords: {}".format(curr_coords.shape))
@@ -80,7 +99,7 @@ def nms(Y_pred,
 					print("Shape of iou_matrix: {}".format(iou_scores.shape))
 
 					# for the remaining boxes, suppress all that have high overlapping area
-					boxes[i+2:][background_id][iou_scores > nms_thres] = 1
+					boxes[i+2:, background_id, iou_scores > nms_thres] = 1
 
 	# Unzip the boxes variable
 	boxes = zip(*boxes)
