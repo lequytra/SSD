@@ -8,12 +8,12 @@ from box_utils import generate_default_boxes
 
 class Decoder(): 
 	def __init__(self, 
-					predictions, 
-					defaults, 
-					numClasses=10, 
-					nms_thres=0.45, 
-					score_thres=0.01, 
-					top_k=200):
+				predictions, 
+				defaults, 
+				numClasses=10, 
+				nms_thres=0.45, 
+				score_thres=0.01, 
+				top_k=200):
 		"""
 			Input: 
 				- predictions: the predicted labels and coordinates

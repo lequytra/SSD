@@ -65,14 +65,14 @@ def build_SSD300(input_shape,
 			activation='relu')(input_img)
 	x = Conv2D(64, kernel_size=3, padding='same',
 			activation='relu')(x)
-	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid')(x)
+	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='same')(x)
 
 	# Layer 2
 	x = Conv2D(128, kernel_size=3, padding='same',
 			activation='relu')(x)
 	x = Conv2D(128, kernel_size=3, padding='same',
 			activation='relu')(x)
-	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid')(x) 
+	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='same')(x) 
 
 	# Layer 3
 	x = Conv2D(256, kernel_size=3, padding='same',
@@ -81,7 +81,7 @@ def build_SSD300(input_shape,
 			activation='relu')(x)
 	x = Conv2D(256, kernel_size=3, padding='same',
 			activation='relu')(x)
-	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid')(x) 
+	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='same')(x) 
 
 	# Layer 4
 	x = Conv2D(512, kernel_size=3, padding='same',
@@ -108,7 +108,7 @@ def build_SSD300(input_shape,
 			activation='relu')(x)
 	x = Conv2D(1014, kernel_size=1, padding='same',
 			activation='relu')(x)
-	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid')(x)
+	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='same')(x)
 
 	featureMap2 = Conv2D(1024, kernel_size=1, padding='same',
 			activation='relu')(x)
@@ -126,7 +126,6 @@ def build_SSD300(input_shape,
 
 	x = Conv2D(256, kernel_size=1, padding='same',
 			activation='relu')(featureMap2)
-	x = MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid')(x)
 	featureMap3 = Conv2D(512, kernel_size=3, strides=2, padding='same',
 			activation='relu')(x)
 
@@ -141,7 +140,7 @@ def build_SSD300(input_shape,
 	# 	   Block 4		 #
 	######################
 
-	x = Conv2D(128, kernel_size=1, padding='valid',
+	x = Conv2D(128, kernel_size=1, padding='same',
 			activation='relu')(featureMap3)
 	featureMap4 = Conv2D(256, kernel_size=3, strides=2, padding='same',
 			activation='relu')(x)
@@ -157,9 +156,9 @@ def build_SSD300(input_shape,
 	# 	   Block 5		 #
 	######################
 
-	x = Conv2D(128, kernel_size=1, padding='valid',
+	x = Conv2D(128, kernel_size=1, padding='same',
 			activation='relu')(featureMap4)
-	featureMap5 = Conv2D(256, kernel_size=3, strides=2, padding='valid',
+	featureMap5 = Conv2D(256, kernel_size=3, strides=2, padding='same',
 			activation='relu')(x)
 
 	######################
@@ -174,7 +173,7 @@ def build_SSD300(input_shape,
 	######################
 	x = Conv2D(128, kernel_size=1, padding='valid',
 			activation='relu')(featureMap5)
-	featureMap6 = Conv2D(256, kernel_size=3, padding='same',
+	featureMap6 = Conv2D(256, kernel_size=3, padding='valid',
 			activation='relu')(x)
 
 	######################
