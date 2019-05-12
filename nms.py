@@ -26,15 +26,13 @@ def score_suppres(Y_pred,
 
 def nms(Y_pred,
 		numClasses=10, 
-		nms_thres=0.45, 
-		score_thres=0.01): 
+		nms_thres=0.45): 
 	"""
 		Input: 
 			- Y_pred 	: a numpy array of all predictions
 				Must be in the format (n_default, 1 + numClasses + 4)
 			- numClasses: the number of boxes predicted
 			- nms_thres : threshold for non-maximum suppression
-			- score_thres: the threshold for class scores
 
 		Output: 
 			- Y_suppressed: a tensor of predictions that satisfy
