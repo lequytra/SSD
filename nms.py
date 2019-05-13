@@ -1,7 +1,7 @@
 import numpy as np 
 
 
-def score_suppres(Y_pred, 
+def score_suppress(Y_pred, 
 					numClasses=10,
 					score_thres=0.01): 
 	"""
@@ -9,7 +9,7 @@ def score_suppres(Y_pred,
 			score smaller than threshold
 	"""
 	# Get all label predictions
-	labels = y_pred[:, 1:numClasses + 1]
+	labels = Y_pred[:, 1:numClasses + 1]
 	# Find the highest score in each class
 	max_label = np.amax(labels, axis=1)
 
@@ -26,15 +26,13 @@ def score_suppres(Y_pred,
 
 def nms(Y_pred,
 		numClasses=10, 
-		nms_thres=0.45, 
-		score_thres=0.01): 
+		nms_thres=0.45): 
 	"""
 		Input: 
 			- Y_pred 	: a numpy array of all predictions
 				Must be in the format (n_default, 1 + numClasses + 4)
 			- numClasses: the number of boxes predicted
 			- nms_thres : threshold for non-maximum suppression
-			- score_thres: the threshold for class scores
 
 		Output: 
 			- Y_suppressed: a tensor of predictions that satisfy
@@ -48,7 +46,6 @@ def nms(Y_pred,
 
 	max_scores = np.max(scores, axis=1)
 	# Suppress all predictions with the highest class score smaller than threshold
-	background[max_scores < score_thres] = 1
 	background = np.expand_dims(background, axis=1)
 	coords = Y_pred[:, -4:]
 
@@ -141,7 +138,7 @@ def top_k(Y_pred, top_k=200):
 	boxes = [(max_scores, scores, coords) for max_scores, scores, coords in boxes_zip]
 
 	boxes.sort(key= lambda curr: curr[0], reverse=True)
-	result = np.empty(shape(top_k, 0))
+	result = np.empty(shape=(top_k, 0))
 
 	#Take only the highest k boxes: 
 
@@ -192,10 +189,10 @@ def iou(box1, box2):
 	return iou_matrix
 
 
-def call(): 
-	Y_pred = np.random.rand(11, 15)
-	s = nms(Y_pred=Y_pred)
+# def call(): 
+# 	Y_pred = np.random.rand(11, 15)
+# 	s = nms(Y_pred=Y_pred)
 
 
-call()
+# call()
 
