@@ -25,7 +25,7 @@ class Decoder():
 		self.numClasses = numClasses
 		self.background_id = 0
 		self.predictions = predictions
-		self.labels = predictions[:, :numClasses + 1]
+		self.labels = predictions[:, :-4]
 		self.bboxes = predictions[:, -4:]
 		self.nms_thres = nms_thres
 		self.score_thres = score_thres
@@ -44,15 +44,14 @@ class Decoder():
 
 		n_default = self.defaults.shape[0]
 
-		self.decoded = np.empty(shape=(0, 1 + self.numClasses + 4))
-
 		coords = self.bboxes[:, -4:]
-		labels = self.bboxes[:, :-4]
-
 		d_coords = self.defaults[:, -4:]
 
 		self.bboxes[:, -4:-2] = coords[:, :-2]*d_coords[:, -2:] + d_coords[:, :-2]
 		self.bboxes[:, -2:] = np.exp(coords[:, -2:])*d_coords[:, -2:]
+
+		self.decoded = np.append(self.labels, self.bboxes, axis=1)
+		print("Decoded shape: {}".format(self.decoded.shape))
 		
 		return self.decoded 
 
@@ -79,10 +78,10 @@ class Decoder():
 
 
 		# Get the class_id with the highest scores
-		pred_labels = np.argmax(pred[:, :self.numClasses], axis=1)
+		pred_labels = np.argmax(pred[:, :-4], axis=1)
 
 		# Get the highest scores
-		pred_scores = np.amax(pred[:, :self.numClasses], axis=1)
+		pred_scores = np.amax(pred[:, :-4], axis=1)
 		# Cast to float for compatibility
 		pred_labels.astype(np.float64)
 
@@ -91,7 +90,8 @@ class Decoder():
 		pred_scores = np.expand_dims(pred_scores, axis=1)
 
 		# Concat the class id with the box coordinates
-		final_pred = np.append(pred_labels, [pred_scores, pred[:, -4:]], axis=1)
+		final_pred = np.append(pred_scores, pred[:, -4:], axis=1)
+		final_pred = np.append(pred_labels, final_pred, axis=1)
 
 		return final_pred
 
@@ -102,7 +102,7 @@ def main():
 	iou_thres=0.5 # for default and gt matching
 	nms_thres=0.45 # IoU threshold for non-maximal suppression
 	score_thres=0.01 # threshold for classification scores
-	top_k=200 # the maximum number of predictions kept per image
+	top_k=5 # the maximum number of predictions kept per image
 	min_scale=0.2 # the smallest scale of the feature map
 	max_scale=0.9 # the largest scale of the feature map
 	aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated

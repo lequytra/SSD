@@ -9,18 +9,20 @@ def score_suppress(Y_pred,
 			score smaller than threshold
 	"""
 	# Get all label predictions
-	labels = Y_pred[:, 1:numClasses + 1]
+	labels = Y_pred[:, :-4]
 	# Find the highest score in each class
 	max_label = np.amax(labels, axis=1)
+	print(labels.shape)
 
 	# For each box that has highest scores lower than threshold, 
 	# Set the background to 1
+
 	Y_pred[max_label < score_thres, 0] = 1
 
 	# find the class with the highest scores
-	highest_class = np.argmax(Y_pred[:, : numClasses + 1], axis=1)
+	highest_class = np.argmax(labels, axis=1)
 	# If it is most likely to be background, set background to 1
-	Y_pred[highest_class == 0] = 1
+	Y_pred[highest_class == 0, 0] = 1
 
 	return Y_pred
 
@@ -40,13 +42,13 @@ def nms(Y_pred,
 
 	"""
 	n_boxes = Y_pred.shape[0]
+	print("Y_pred shape: {}".format(Y_pred.shape))
 	background_id = 0
 	background = Y_pred[:, 0]
-	scores = Y_pred[:, 1:numClasses+1]
+	print("Background shape: {}".format(background.shape))
 
-	max_scores = np.max(scores, axis=1)
-	# Suppress all predictions with the highest class score smaller than threshold
-	background = np.expand_dims(background, axis=1)
+	scores = Y_pred[:, 1:-4]
+
 	coords = Y_pred[:, -4:]
 
 	# Zip corresponding information for sorting 
@@ -79,21 +81,17 @@ def nms(Y_pred,
 						_, _, coord = b
 						coord = np.expand_dims(coord, axis=0)
 
-						# _, _, curr_coords = box
-
 						# Expand the shape of current coords to (1, 4)
 						curr_coords = np.reshape(curr_coords, (-1, 4))
 
 						iou_scores = iou(curr_coords, coord)
-						print("IOU: {}".format(iou_scores[0]))
 
 						# for the remaining boxes, suppress all that have high overlapping area
 						b[background_id][0] = 1 if iou_scores > nms_thres else b[background_id][0]
-						print("background_id: {}".format(b[background_id][0]))
+						
 
 	# Unzip the boxes variable
 	boxes = zip(*boxes)
-	boxes = [np.array(element) for element in boxes]
 
 	Y_suppressed = np.empty(shape=(n_boxes, 0))
 
@@ -108,14 +106,11 @@ def nms(Y_pred,
 
 def delete_background(Y_pred, numClasses): 
 	"""
-		A method to delete all background predictions
+		A method to delete all background box predictions
 	"""
+	background = Y_pred[:, 0]
 
-	result = np.empty(shape=(0, numClasses + 1))
-
-	for pred in Y_pred: 
-		if pred[0] != 1: 
-			result = np.append(result, pred[1:])
+	result = Y_pred[background != 1]
 
 	return result
 
@@ -125,15 +120,15 @@ def top_k(Y_pred, top_k=200):
 	"""
 	n_pred = Y_pred.shape[0]
 
-	if n_pred < top_k: 
+	if n_pred <= top_k: 
 		return Y_pred
 	# Find the highest score for each box
-	max_scores = np.amax(Y_pred[1: ])
+	max_scores = np.amax(Y_pred[:, :-4], axis=1)
 
-	scores = Y_pred[:, :numClasses]
+	scores = Y_pred[:, :-4]
 	coords = Y_pred[:, -4:]
 
-	boxes_zip = zip(max_scores, background, scores, coords)
+	boxes_zip = zip(max_scores, scores, coords)
 
 	boxes = [(max_scores, scores, coords) for max_scores, scores, coords in boxes_zip]
 
@@ -141,7 +136,6 @@ def top_k(Y_pred, top_k=200):
 	result = np.empty(shape=(top_k, 0))
 
 	#Take only the highest k boxes: 
-
 	boxes = boxes[:top_k]
 	# Unzip boxes
 	boxes = zip(*boxes)
