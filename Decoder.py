@@ -1,9 +1,6 @@
 import numpy as np 
-from Encoder import Encoder
 import tensorflow as tf
-from tensorflow.math import argmax, exp, reduce_max
-from tensorflow.image import non_max_suppression 
-import keras.backend as K 
+from nms import score_suppress, nms, delete_background, top_k, iou
 from box_utils import generate_default_boxes
 
 class Decoder(): 
@@ -27,6 +24,7 @@ class Decoder():
 		self.defaults = defaults
 		self.numClasses = numClasses
 		self.background_id = 0
+		self.predictions = predictions
 		self.labels = predictions[:, :numClasses + 1]
 		self.bboxes = predictions[:, -4:]
 		self.nms_thres = nms_thres
@@ -46,82 +44,57 @@ class Decoder():
 
 		n_default = self.defaults.shape[0]
 
-		self.decoded = tf.constant(np.empty(shape=(0, 1 + self.numClasses + 4)))
+		self.decoded = np.empty(shape=(0, 1 + self.numClasses + 4))
 
-		for i in range(n_default): 
-			curr_pred = self.bboxes[i]
-			curr_db = self.defaults[i]
+		coords = self.bboxes[:, -4:]
+		labels = self.bboxes[:, :-4]
 
-			xy_abs = curr_pred[:2]*curr_db[2:] + curr_db[:2]
-			wh_abs = K.exp(curr_pred[2:])*curr_db[2:]
+		d_coords = self.defaults[:, -4:]
 
-			xy2_abs = xy_abs + wh_abs
-			
-			abs_coords = tf.concat([xy_abs, xy2_abs], axis=0)
-			# abs_coords = tf.expand_dims(abs_coords, axis=0)
-
-			curr_label = self.labels[i]
-
-			# curr_label = tf.expand_dims(axis=0)
-
-			decode_y = tf.concat([curr_label, abs_coords], axis=0)
-
-			decode_y = tf.expand_dims(decode_y, axis=0)
-
-			self.decoded = tf.concat([self.decoded, decode_y], axis=0)
-
-		# Get rid of background class score
-		self.decoded = self.decoded[:, 1:]
-
-		assert self.decoded.shape == (n_default, self.numClasses + 4)
+		self.bboxes[:, -4:-2] = coords[:, :-2]*d_coords[:, -2:] + d_coords[:, :-2]
+		self.bboxes[:, -2:] = np.exp(coords[:, -2:])*d_coords[:, -2:]
 		
 		return self.decoded 
-
-	def nms(self): 
-		max_scores = reduce_max(self.labels, axis=1)
-
-		print("score shape: {}".format(max_scores.shape))
-
-		max_scores = tf.cast(max_scores, dtype=tf.float32)
-
-		boxes = tf.cast(self.decoded[:, -4:], dtype=tf.float32)
-
-		print("boxes shape: {}".format(boxes.shape))
-
-		nms_boxes_idx = non_max_suppression(boxes=boxes, 
-											scores=max_scores,
-											max_output_size=self.top_k, 
-											iou_threshold=self.nms_thres, 
-											score_threshold=self.score_thres)
-
-		print("nms boxes indices shape: {}".format(nms_boxes_idx.shape))
-
-		return nms_boxes_idx
 
 
 	def prediction_out(self): 
 
-		# Get the class_id with the highest scores
-		pred_labels = argmax(self.labels[:, self.background_id + 1:], axis=1)
-		# Cast pred_labels to float64 for compatibility
-		pred_labels = tf.cast(pred_labels, dtype=tf.float64)
-		pred_labels = tf.expand_dims(pred_labels, axis=1)
-		# selected_boxes_idx = self.nms()
+		pred = score_suppress(Y_pred=self.decoded, 
+							  numClasses=self.numClasses, 
+							  score_thres=self.score_thres)
 
-		# final_pred = tf.concat(tf.gather(pred_labels, selected_boxes_idx), 
-		# 						tf.gather(self.decoded[:, -4:], selected_boxes_idx))
-		final_pred = tf.concat([pred_labels, self.decoded[:, -4:]], axis=1)
+		# Delete all background boxes
+		pred = delete_background(Y_pred=pred, numClasses=self.numClasses)
+
+		# Suppress all boxes
+		pred = nms(Y_pred=pred, numClasses=self.numClasses, nms_thres=self.nms_thres)
+
+		# Delete all background boxes
+		pred = delete_background(Y_pred=pred, numClasses=self.numClasses)
+
+		# Remove the background column
+		pred = pred[:, 1:]
+		# Take top k boxes
+		pred = top_k(Y_pred=pred, top_k=self.top_k)
+
+
+		# Get the class_id with the highest scores
+		pred_labels = np.argmax(pred[:, :self.numClasses], axis=1)
+
+		# Get the highest scores
+		pred_scores = np.amax(pred[:, :self.numClasses], axis=1)
+		# Cast to float for compatibility
+		pred_labels.astype(np.float64)
+
+		pred_labels = np.expand_dims(pred_labels, axis=1)
+
+		pred_scores = np.expand_dims(pred_scores, axis=1)
+
+		# Concat the class id with the box coordinates
+		final_pred = np.append(pred_labels, [pred_scores, pred[:, -4:]], axis=1)
+
 		return final_pred
 
-def tensor_to_array(tensor1):
-    '''Convert tensor object to numpy array'''
-    array1 = SESS.run(tensor1) 
-    return array1.astype("float32")
-
-def array_to_tensor(array):
-    '''Convert numpy array to tensor object'''
-    tensor_data = tf.convert_to_tensor(array, dtype=tf.float32)
-    return tensor_data
 
 def main(): 
 	input_shape=(300, 300, 3)
