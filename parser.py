@@ -9,17 +9,19 @@ import os
 import json
 
 class Parser():
-    def __init__ (self, data_dir, data_type, resize_shape=(300,300,3)):
+    def __init__ (self, data_dir, data_type,  numClasses, resize_shape=(300,300,3)):
         '''
         data_dir: a path to directory containing annotations
         data_type: type of the annotations, train or val
         resize_shape: an array of desired image dimension
+        numClasses: number of classes to parse, count from the first class
         '''
         self.data_dir = data_dir
         self.data_type = data_type
         annFile = '{}/annotations/instances_{}.json'.format(self.data_dir,self.data_type)
         self.coco = COCO(annFile)
         self.fileName = None
+        self.numClasses = numClasses
         self.resize_shape = resize_shape
         
         
@@ -30,11 +32,8 @@ class Parser():
 
         '''
         coco = self.coco
-
-        numClasses = 10
-
-        cat_ids = [i + 1 for i in range(numClasses)]
-        numClasses = len(cat_ids)
+        all_cat_ids = coco.getCatIds()
+        cat_ids = all_cat_ids[:self.numClasses]
 
         self.ground_truth = []
         self.img_ids = set()
@@ -49,8 +48,9 @@ class Parser():
             for img_id in images:
                 self.img_ids.add(img_id)
 
+        # Get all annotations for each image
         for img_id in self.img_ids: 
-            batch = np.empty(shape=(0, numClasses + 4), dtype='float')
+            batch = np.empty(shape=(0, self.numClasses + 4), dtype='float')
             img = coco.loadImgs(img_id)
 
             # Get image dimension
@@ -61,10 +61,10 @@ class Parser():
                 width_ratio = width
                 height_ratio = height
 
-            for cat_id in cat_ids:
+            for label_index, cat_id in enumerate(cat_ids):
                 # labels is 0,1 array, 1 marks the presence of class
-                labels = np.zeros(shape = (1, numClasses), dtype='int')
-                labels[0][cat_id-1] = 1                
+                labels = np.zeros(shape = (1, self.numClasses), dtype='int')
+                labels[0][label_index] = 1                
 
                 ann_ids = coco.getAnnIds(imgIds=img_id, catIds=cat_id)
 
@@ -147,9 +147,13 @@ class Parser():
 
 def main(): 
     data_dir = "/Users/tranle/mscoco"
+    #data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
     training_data = "val2017"
+    numClasses = 10
     # Initialize a parser object
-    parser = Parser(data_dir, training_data)
+    print("Start parsing")
+    parser = Parser(data_dir, training_data, numClasses)
+    print("Done parsing")
 
     # Load images and annotations for the image
     # For now, we load only 10 first classes and images are resize to (300,300,3) 
@@ -167,5 +171,5 @@ def main():
 
 
 
-# if __name__ == "__main__":
-#     # main()
+#if __name__ == "__main__":
+#    main()
