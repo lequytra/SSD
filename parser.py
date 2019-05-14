@@ -31,10 +31,12 @@ class Parser():
         '''
         coco = self.coco
 
-        cat_ids = [1,2,3,4,5,6,7,8,9,10]
+        numClasses = 10
+
+        cat_ids = [i + 1 for i in range(numClasses)]
         numClasses = len(cat_ids)
 
-        self.ground_truth = []
+        self.ground_truth = np.empty(shape=(0, numClasses + 4), dtype='float')
         self.img_ids = set()
 
         if self.resize_shape != None:
@@ -82,9 +84,12 @@ class Parser():
 
                     batch = np.append(batch, gt, axis=0)
 
-            self.ground_truth.append(batch)
+            self.ground_truth = np.append(self.ground_truth, batch, axis=0)
 
-        return np.array(self.ground_truth)
+        print(self.ground_truth.shape)
+        print(type(self.ground_truth))
+
+        return self.ground_truth
 
 
     def load_img_paths(self, fileName=None):

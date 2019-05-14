@@ -4,7 +4,7 @@ import tensorflow as tf
 import keras.backend as K 
 from sklearn.model_selection import train_test_split
 import itertools as it 
-
+from parser import Parser
 from box_utils import IoU, generate_default_boxes
 
 
@@ -73,10 +73,11 @@ class Encoder():
 
 		n_boxes = self.boxes.shape[0]
 		weight = self.iou_matrix
-		matched = np.zeros((n_boxes,))
+		matched = np.zeros(n_boxes)
 
 		for i in range(n_boxes): 
 			max_index = np.unravel_index(np.argmax(weight, axis=None), self.iou_matrix.shape)
+			print(max_index)
 			gt_coord = max_index[1]
 			db_coord = max_index[0]
 			matched[gt_coord] = db_coord
@@ -98,8 +99,8 @@ class Encoder():
 								with each default box (n_default,)
 		"""
 		matched = self.max_bipartite_matching()
-		highest_box = np.max(self.iou_matrix, axis=1)
-
+		highest_box = np.amax(self.iou_matrix, axis=1)
+		print(highest_box)
 		assert highest_box.shape[0] == self.default.shape[0]
 
 		self.matches = np.argmax(self.iou_matrix, axis=1)
@@ -108,10 +109,9 @@ class Encoder():
 		self.matches[highest_box < self.iou_thres] = -1
 
 		assert self.matches.shape[0] == self.default.shape[0]
-
+		print(self.matches)
 
 		return self.matches
-
 
 	def get_encoded_data(self):
 
@@ -176,6 +176,8 @@ def encode_batch(y_truth,
 
 	encoded_all = [func(Y) for Y in y_truth]
 
+	print(encoded_all[1:5])
+
 	encoded_all = np.array(encoded_all)
 
 	return encoded_all
@@ -208,6 +210,18 @@ def main(Y):
 	#                 aspect_ratios=aspect_ratios)
 
 	# Y = encode.get_encoded_data()
+	data_dir = "/Users/tranle/mscoco"
+	training_data = "val2017"
+	# Initialize a parser object
+	parser = Parser(data_dir, training_data)
+
+
+	# Load images and annotations for the image
+	# For now, we load only 10 first classes and images are resize to (300,300,3) 
+	# for training purposes
+
+	X, Y = parser.load_data()
+	Y = Y[1:5]
 
 	Y = encode_batch(y_truth=Y, 
 					default=default,
@@ -217,15 +231,16 @@ def main(Y):
 
 	return Y
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 	
 
 	# X = np.random.rand(100, 300, 300, 3)
-	# Y = np.random.rand(100, 3, 14)
+	Y = np.random.rand(100, 3, 14)
 
-	# Y_train = main(Y)
+	Y_train = main(Y)
+
 	
-	# print(Y_train.shape)
+	print(Y_train.shape)
 
-	# print(type(Y_train))
+	print(type(Y_train))
 

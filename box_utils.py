@@ -24,8 +24,8 @@ def generate_default_boxes(n_layers=6,
 		for i, j in it.product(range(map_size[level]), repeat=2): 
 			
 			# Calculate the center of each default box
-			x = (i + 0.5)/map_size[level]
-			y = (j + 0.5)/map_size[level]
+			x = i/map_size[level]
+			y = j/map_size[level]
 
 			for ratio in aspect_ratios: 
 				box = np.empty(shape=(1, 4))
@@ -88,3 +88,24 @@ def IoU(default,
 	iou_matrix = np.maximum(intersect/union, 0)
 
 	return iou_matrix
+
+# input_shape=(300, 300, 3)
+# numClasses = 10
+# iou_thres=0.5 # for default and gt matching
+# nms_thres=0.45 # IoU threshold for non-maximal suppression
+# score_thres=0.01 # threshold for classification scores
+# top_k=200 # the maximum number of predictions kept per image
+# min_scale=0.2 # the smallest scale of the feature map
+# max_scale=0.9 # the largest scale of the feature map
+# aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated
+# n_predictions=6 # the number of prediction blocks
+# prediction_size=[37, 18, 10, 5, 3, 1] # sizes of feature maps at each level
+
+# default = generate_default_boxes(n_layers=n_predictions, 
+# 								min_scale=min_scale, 
+# 								max_scale=max_scale, 
+# 								map_size=prediction_size,
+# 								aspect_ratios=aspect_ratios)
+
+# iou = IoU(default, default)
+# print(iou[1:100, 1:100])
