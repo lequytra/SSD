@@ -1,5 +1,5 @@
 import numpy as np 
-
+from box_utils import IoU
 
 def score_suppress(Y_pred, 
 					numClasses=10,
@@ -12,7 +12,7 @@ def score_suppress(Y_pred,
 	labels = Y_pred[:, :-4]
 	# Find the highest score in each class
 	max_label = np.amax(labels, axis=1)
-	print(labels.shape)
+
 
 	# For each box that has highest scores lower than threshold, 
 	# Set the background to 1
@@ -42,19 +42,18 @@ def nms(Y_pred,
 
 	"""
 	n_boxes = Y_pred.shape[0]
-	print("Y_pred shape: {}".format(Y_pred.shape))
+	
 	background_id = 0
 	background = Y_pred[:, 0]
-	print("Background shape: {}".format(background.shape))
 
 	scores = Y_pred[:, 1:-4]
 
 	coords = Y_pred[:, -4:]
 
-	# Zip corresponding information for sorting 
-	boxes_zip = zip(background,scores, coords)
+	# Turn into lists of boxes
+	boxes = [Y_pred[i, :] for i in range(n_boxes)]
 
-	boxes = [(background, scores, coords) for background, scores, coords in boxes_zip]
+	picked = np.empty(shape=(0, 1 + numClasses + 4))
 
 	for c in range(numClasses):
 
@@ -63,53 +62,50 @@ def nms(Y_pred,
 
 		else: 
 			# Descendingly sort the boxes based on the scores of the current class
-			boxes.sort(key= lambda curr: curr[1][c], reverse=True)
+			boxes.sort(key= lambda curr: curr[c], reverse=True)
+			# print("Shape of boxes: {}".format(len(boxes)))
 
-			for i in range(len(boxes) - 1): 
-				# Get the current box
-				box = boxes[i]
-				# If the current box is a background class or 
-				# have confidence score of 0
+			remaining = np.stack(boxes, axis=0)
 
-				curr_background, curr_scores, curr_coords = box
-				if curr_background == 1 or curr_scores[c] == 0: 
-					continue
-				else: 
-					remaining_boxes = boxes[i + 1:]
+			while(remaining.shape[0] > 0): 
+				# Get the highest box
+				curr_coords = remaining[0, -4:]
+				# print("Curr shape: {}".format(remaining[0].shape))
+				# Add the current highest to the set 
+				picked = np.append(picked, np.expand_dims(remaining[0], axis=0), axis=0)
 
-					for b in remaining_boxes: 
-						_, _, coord = b
-						coord = np.expand_dims(coord, axis=0)
+				curr_coords = np.expand_dims(curr_coords, axis=0)
 
-						# Expand the shape of current coords to (1, 4)
-						curr_coords = np.reshape(curr_coords, (-1, 4))
+				rest_coords = remaining[:, -4:]
+				# print("Shape of curr coords and rest: {}, {}".format(curr_coords.shape, rest_coords.shape))
+				# Calculate the IoU with rest: 
 
-						iou_scores = iou(curr_coords, coord)
+				iou_scores = IoU(rest_coords, curr_coords)
+				# print("Shape of iou_scores: {}".format(iou_scores.shape))
+				# Make it a 1D array
+				iou_scores = np.squeeze(iou_scores, axis=1)
 
-						# for the remaining boxes, suppress all that have high overlapping area
-						b[background_id][0] = 1 if iou_scores > nms_thres else b[background_id][0]
-						
+				remaining = remaining[iou_scores <= nms_thres]
 
-	# Unzip the boxes variable
-	boxes = zip(*boxes)
+				picked = np.append(picked, remaining, axis=0)
 
-	Y_suppressed = np.empty(shape=(n_boxes, 0))
+	# Get only unique boxes
+	picked = np.unique(picked, axis=0)
+	# Append to be a 2D np array
+	result = np.stack(picked, axis=0)
 
-	# Append the elements to Y_suppress
-	for i in boxes: 
-		Y_suppressed = np.append(Y_suppressed, i, axis=1)
+	return result
 
-	print(Y_suppressed)
-	print(type(Y_suppressed))
-
-	return Y_suppressed
+	
 
 def delete_background(Y_pred, numClasses): 
 	"""
 		A method to delete all background box predictions
 	"""
+	# Get the background class
 	background = Y_pred[:, 0]
 
+	# Only get boxes that are not background
 	result = Y_pred[background != 1]
 
 	return result
@@ -118,9 +114,9 @@ def top_k(Y_pred, top_k=200):
 	"""
 		Return only the top k highest boxes. Boxes should not contain background class
 	"""
-	n_pred = Y_pred.shape[0]
+	n_boxes = Y_pred.shape[0]
 
-	if n_pred <= top_k: 
+	if n_boxes <= top_k: 
 		return Y_pred
 	# Find the highest score for each box
 	max_scores = np.amax(Y_pred[:, :-4], axis=1)
@@ -128,20 +124,14 @@ def top_k(Y_pred, top_k=200):
 	scores = Y_pred[:, :-4]
 	coords = Y_pred[:, -4:]
 
-	boxes_zip = zip(max_scores, scores, coords)
-
-	boxes = [(max_scores, scores, coords) for max_scores, scores, coords in boxes_zip]
+	boxes = [Y_pred[i, :] for i in range(n_boxes)]
 
 	boxes.sort(key= lambda curr: curr[0], reverse=True)
-	result = np.empty(shape=(top_k, 0))
 
 	#Take only the highest k boxes: 
 	boxes = boxes[:top_k]
-	# Unzip boxes
-	boxes = zip(*boxes)
 
-	for i in boxes: 
-		result = np.append(result, i, axis=1)
+	result = np.stack(boxes, axis=0)
 
 	return result
 

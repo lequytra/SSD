@@ -51,7 +51,7 @@ class Decoder():
 		self.bboxes[:, -2:] = np.exp(coords[:, -2:])*d_coords[:, -2:]
 
 		self.decoded = np.append(self.labels, self.bboxes, axis=1)
-		print("Decoded shape: {}".format(self.decoded.shape))
+		# print("Decoded shape: {}".format(self.decoded.shape))
 		
 		return self.decoded 
 
@@ -68,14 +68,10 @@ class Decoder():
 		# Suppress all boxes
 		pred = nms(Y_pred=pred, numClasses=self.numClasses, nms_thres=self.nms_thres)
 
-		# Delete all background boxes
-		pred = delete_background(Y_pred=pred, numClasses=self.numClasses)
-
 		# Remove the background column
 		pred = pred[:, 1:]
 		# Take top k boxes
 		pred = top_k(Y_pred=pred, top_k=self.top_k)
-
 
 		# Get the class_id with the highest scores
 		pred_labels = np.argmax(pred[:, :-4], axis=1)
@@ -130,13 +126,13 @@ def main():
 
 	return decoder
 
-if __name__ == '__main__':
-	decoder = main()
+# if __name__ == '__main__':
+	# decoder = main()
 
-	results = decoder.prediction_out()
+	# results = decoder.prediction_out()
 
-	print(results.shape)
-	print(type(results))
+	# print(results.shape)
+	# print(type(results))
 
 
 
