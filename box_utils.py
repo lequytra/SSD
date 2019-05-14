@@ -73,7 +73,7 @@ def IoU(default,
 	botright_x = np.minimum(x12,np.transpose(x22))
 	botright_y = np.minimum(y12,np.transpose(y22))
 
-	intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
+	intersect = np.maximum(botright_x - topleft_x, 0)*np.maximum(botright_y - topleft_y, 0)
 
 	# Calculate areas of every default boxes and ground-truth boxes
 	area_default = w1*h1

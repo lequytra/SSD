@@ -71,16 +71,18 @@ class Encoder():
 
 		"""
 
-		n_boxes = self.boxes.shape[0]
-		weight = self.iou_matrix
+		n_boxes = self.default.shape[0]
+		weight = np.copy(self.iou_matrix)
 		matched = np.zeros(n_boxes)
+		# Initialize to all -1
+		matched = matched - 1
 
 		for i in range(n_boxes): 
 			max_index = np.unravel_index(np.argmax(weight, axis=None), self.iou_matrix.shape)
-			print(max_index)
+
 			gt_coord = max_index[1]
 			db_coord = max_index[0]
-			matched[gt_coord] = db_coord
+			matched[db_coord] = gt_coord
 			weight[:, gt_coord] = 0
 			weight[db_coord, :] = 0
 			self.iou_matrix[db_coord, gt_coord] = 1
@@ -99,17 +101,22 @@ class Encoder():
 								with each default box (n_default,)
 		"""
 		matched = self.max_bipartite_matching()
+
 		highest_box = np.amax(self.iou_matrix, axis=1)
-		print(highest_box)
+		# print(highest_box)
+
 		assert highest_box.shape[0] == self.default.shape[0]
 
 		self.matches = np.argmax(self.iou_matrix, axis=1)
 
-		# Set all the matched pair with iou < thres to -1
+		# Set all the unmatched pair with iou < thres to -1
 		self.matches[highest_box < self.iou_thres] = -1
 
+		self.matches[matched >= 0] = matched[matched >= 0]
+
 		assert self.matches.shape[0] == self.default.shape[0]
-		print(self.matches)
+		# print(np.argmax(self.matches))
+		# print(np.amax(self.matches))
 
 		return self.matches
 
@@ -176,7 +183,7 @@ def encode_batch(y_truth,
 
 	encoded_all = [func(Y) for Y in y_truth]
 
-	print(encoded_all[1:5])
+	# print(encoded_all[1:5])
 
 	encoded_all = np.array(encoded_all)
 

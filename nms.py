@@ -159,7 +159,7 @@ def iou(box1, box2):
 	botright_x = np.minimum(x12,x22)
 	botright_y = np.minimum(y12,y22)
 
-	intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
+	intersect = np.maximum(botright_x - topleft_x, 0)*np.maximum(botright_y - topleft_y, 0)
 	# Calculate areas of every box1 boxes and ground-truth boxes
 	area = (x12 - x1)*(y12 - y1) + (x2 - x22)*(y2 - y22)
 

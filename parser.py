@@ -36,7 +36,7 @@ class Parser():
         cat_ids = [i + 1 for i in range(numClasses)]
         numClasses = len(cat_ids)
 
-        self.ground_truth = np.empty(shape=(0, numClasses + 4), dtype='float')
+        self.ground_truth = []
         self.img_ids = set()
 
         if self.resize_shape != None:
@@ -71,23 +71,20 @@ class Parser():
                 # Loop through annotations for each image
                 for ann_id in ann_ids:
                     ann = coco.loadAnns(ann_id)
-                    #print(ann[0]['bbox'])
-                    # ann_id['bbox'] = (xmin, ymin, w, h)
+                    # print(ann[0]['bbox'])
+                     # ann_id['bbox'] = (xmin, ymin, w, h)
                     bbox = np.zeros(shape=(1,4), dtype='float')
-                    bbox[0][0] = (float) (ann[0]['bbox'][0] + ann[0]['bbox'][2]) / 2 / width  * (width_ratio / width) # Normalized
-                    bbox[0][1] = (float) (ann[0]['bbox'][1] + ann[0]['bbox'][3]) / 2 / height * (height_ratio / height) # Normalized
-                    bbox[0][2] = (float) (ann[0]['bbox'][2]) / width * (width_ratio / width)
-                    bbox[0][3] = (float) (ann[0]['bbox'][3]) / height * (height_ratio / height)
+                    bbox[0][0] = (float) (ann[0]['bbox'][0] / width)  * (width_ratio / width) # Normalized
+                    bbox[0][1] = (float) (ann[0]['bbox'][1] / height) * (height_ratio / height) # Normalized
+                    bbox[0][2] = (float) (ann[0]['bbox'][2] / width) * (width_ratio / width)
+                    bbox[0][3] = (float) (ann[0]['bbox'][3] / height) * (height_ratio / height)
 
                     # Create a ground_truth item
                     gt = np.append(labels, bbox, axis=1)
 
                     batch = np.append(batch, gt, axis=0)
 
-            self.ground_truth = np.append(self.ground_truth, batch, axis=0)
-
-        print(self.ground_truth.shape)
-        print(type(self.ground_truth))
+            self.ground_truth.append(batch)
 
         return self.ground_truth
 

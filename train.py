@@ -60,8 +60,8 @@ print("Encoding data ... ")
 
 
 # Get 2000 images for training
-X_train = X[:2001]
-Y_train = Y[:2001]
+X_train = X[:80]
+Y_train = Y[:80]
 
 # Get 1000 images for evaluation
 X_val = X[2001:3002]
