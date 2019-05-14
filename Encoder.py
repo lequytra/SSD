@@ -146,9 +146,7 @@ class Encoder():
 
 		coords = np.append(xy_offset, wh_offset, axis=-1)
 
-		print("Shape of coords: {}".format(coords.shape))
 		ground_truth_all = np.append(labels, coords, axis=-1)
-		print("shape of gt all: {}".format(ground_truth_all))
 
 		default_indices = [i for i in range(n_default)]
 		gt_indices = self.matches
@@ -164,8 +162,6 @@ class Encoder():
 		background[gt_indices < 0] = 1 
 
 		encoded_all = np.append(background, matched_box, axis=1)
-
-		print("Encoded shape: {}".format(encoded_all.shape))
 
 		return encoded_all
 
@@ -317,27 +313,20 @@ def main(Y):
 	elapse2 = time.time() - t
 	
 
-
-
-	for i in range(4): 
-		print("Y1: {}".format(Y_1[i, :]))
-		print("Y2: {}".format(Y_2[i, :]))
-
-
 	print("Time for 1: {}".format(elapse1))
 	print("Time for 2: {}".format(elapse2))
 	return (Y_1, Y_2)
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 	
 
-	# X = np.random.rand(100, 300, 300, 3)
-	Y = np.random.rand(100, 3, 14)
+# 	# X = np.random.rand(100, 300, 300, 3)
+# 	Y = np.random.rand(100, 3, 14)
 
-	Y_train = main(Y)
+# 	Y_train = main(Y)
 
 	
-	print(Y_train.shape)
+# 	print(Y_train.shape)
 
-	print(type(Y_train))
+# 	print(type(Y_train))
 
