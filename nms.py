@@ -149,10 +149,14 @@ def iou(box1, box2):
 						Jaccard index of each box2 boxes for
 						every ground-truth boxes. box2	"""
 
-	x1, y1, x12, y12 = np.split(box1, 4, axis=1)
-	x2, y2, x22, y22 = np.split(box2, 4, axis=1)
+	x1, y1, w12, h12 = np.split(box1, 4, axis=1)
+	x2, y2, w22, h22 = np.split(box2, 4, axis=1)
 
-
+	x12 = x1 + w12
+	y12 = y1 + h12
+	x22 = x2 + w22
+	y22 = y2 + h22
+	
 	topleft_x = np.maximum(x1,x2)
 	topleft_y = np.maximum(y1,y2)
 

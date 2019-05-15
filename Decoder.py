@@ -70,8 +70,6 @@ class Decoder():
 
 		# Remove the background column
 		pred = pred[:, 1:]
-		# Take top k boxes
-		pred = top_k(Y_pred=pred, top_k=self.top_k)
 
 		# Get the class_id with the highest scores
 		pred_labels = np.argmax(pred[:, :-4], axis=1)
@@ -88,6 +86,8 @@ class Decoder():
 		# Concat the class id with the box coordinates
 		final_pred = np.append(pred_scores, pred[:, -4:], axis=1)
 		final_pred = np.append(pred_labels, final_pred, axis=1)
+		# Take top k boxes
+		pred = top_k(Y_pred=pred, top_k=self.top_k)
 
 		return final_pred
 
