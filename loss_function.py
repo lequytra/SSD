@@ -36,7 +36,7 @@ def logSoftmax(con_true, con_pred):
 	'''
 
 	# Remove zero input when compute log
-	con_pred = tf.math.maximum(con_pred, 0)
+	con_pred = tf.math.maximum(con_pred, 1e-18)
 
 	# Compute log softmax loss
 	term = con_true * K.log(con_pred)
@@ -52,9 +52,9 @@ def hard_neg_mining(neg_con_loss_all, num_neg_compute, confidence_loss,
 	'''
 	neg_con_loss_all_1D = K.reshape(neg_con_loss_all, [-1]) # Shape: (batch_size * n_boxes)
 	
-	values, indices = tf.nn.top_k(neg_con_loss_all_1D,
-	            				num_neg_compute,
-	                            sorted=False) 
+	values, indices = tf.nn.top_k(input=neg_con_loss_all_1D,
+	            				  k=K.cast(num_neg_compute, 'int32'),
+	                              sorted=False) 
 	
 	# Create negative mask
 	negatives_keep = tf.scatter_nd(indices=tf.expand_dims(indices, axis=1),
@@ -89,12 +89,12 @@ def loss_function(y_true, y_pred):
 		total_loss = 0
 	else:
 		# 1. Calculate location and confidence loss for all boxes
-		location_loss = tf.to_float(smoothL1(y_true[:, :, -4:], y_pred[:, :, -4:]))
-		confidence_loss = tf.to_float(logSoftmax(y_true[:, :, :-4], y_pred[:, :, :-4]))
+		location_loss = tf.cast(smoothL1(y_true[:, :, -4:], y_pred[:, :, -4:]), 'float32')
+		confidence_loss = tf.cast(logSoftmax(y_true[:, :, :-4], y_pred[:, :, :-4]), 'float32')
 
 		# 2. Calculate confidence and location loss for positive classes
 			# Get the maximum score across positive classes, i.e logical matrix 
-		pos_mask = tf.to_float(tf.reduce_max(y_true[:, :, 1:-4], axis=-1))
+		pos_mask = tf.cast(tf.reduce_max(y_true[:, :, 1:-4], axis=-1), 'float32')
 
 			# Calculate the positive confidence loss
 		pos_con_loss = K.sum(confidence_loss * pos_mask, -1) # Sum across boxes
@@ -139,7 +139,7 @@ def loss_function(y_true, y_pred):
 		# In case there are no positive boxes
 		total_loss = (con_loss + alpha * pos_loc_loss) / tf.math.maximum(1.0, num_pos)
 
-	return int(total_loss)
+	return total_loss
 
 def main(): 
 	pred = np.random.rand(10, 8, 15)

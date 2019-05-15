@@ -2,9 +2,9 @@ import numpy as np
 import tensorflow as tf 
 import math 
 from matplotlib import pyplot as plt
-
+from box_utils import generate_default_boxes
 from loss_function import loss_function
-
+from metrics import iou_metrics
 from keras import losses
 from keras.models import Model
 from keras.utils import to_categorical, plot_model
@@ -245,23 +245,35 @@ def build_SSD300(input_shape,
 
 	return model 
 
+input_shape=(300, 300, 3)
+numClasses = 10
+iou_thres=0.5 # for default and gt matching
+nms_thres=0.45 # IoU threshold for non-maximal suppression
+score_thres=0.01 # threshold for classification scores
+top_k=200 # the maximum number of predictions kept per image
+min_scale=0.2 # the smallest scale of the feature map
+max_scale=0.9 # the largest scale of the feature map
+aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated
+n_predictions=6 # the number of prediction blocks
+prediction_size=[38, 19, 10, 5, 3, 1] # sizes of feature maps at each level
 
-# adam = Adam()
+# Generate default boxes: 
+default = generate_default_boxes(n_layers=n_predictions, 
+                                min_scale=min_scale, 
+                                max_scale=max_scale, 
+                                map_size=prediction_size, 
+                                aspect_ratios=aspect_ratios)
 
-# SSD300 = build_SSD300((300, 300, 3), 10)
-# SSD300.compile(optimizer=adam, loss='mean_squared_error', 
-# 		metrics=['accuracy'])
+adam = Adam()
+
+def iou(Y_true, Y_pred): 
+	return iou_metrics(Y_true, Y_pred, default)
+
+SSD300 = build_SSD300((300, 300, 3), 10)
+SSD300.compile(optimizer=adam, loss=loss_function, 
+		metrics=['accuracy', iou])
 # # (X_train, Y_train), (X_test, Y_test) = build_inputs()
 # # train(SSD300, X_train, Y_train, X_test, Y_test)
 # # SSD300.fit(X_train, Y_train, validation_data=(X_train, Y_train), epochs=3)
 # SSD300.summary()
 # plot_model(SSD300, to_file='model1.png')
-
-
-
-
-
-
-
-
-

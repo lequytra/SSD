@@ -1,7 +1,7 @@
 import numpy as np 
+from box_utils import IoU
 
-
-def score_suppres(Y_pred, 
+def score_suppress(Y_pred, 
 					numClasses=10,
 					score_thres=0.01): 
 	"""
@@ -9,32 +9,32 @@ def score_suppres(Y_pred,
 			score smaller than threshold
 	"""
 	# Get all label predictions
-	labels = y_pred[:, 1:numClasses + 1]
+	labels = Y_pred[:, :-4]
 	# Find the highest score in each class
-	max_label = np.amax(labels, axis=1)
+	max_label = np.amax(labels, axis=-1)
+
 
 	# For each box that has highest scores lower than threshold, 
 	# Set the background to 1
+
 	Y_pred[max_label < score_thres, 0] = 1
 
 	# find the class with the highest scores
-	highest_class = np.argmax(Y_pred[:, : numClasses + 1], axis=1)
+	highest_class = np.argmax(labels, axis=-1)
 	# If it is most likely to be background, set background to 1
-	Y_pred[highest_class == 0] = 1
+	Y_pred[highest_class == 0, 0] = 1
 
 	return Y_pred
 
 def nms(Y_pred,
 		numClasses=10, 
-		nms_thres=0.45, 
-		score_thres=0.01): 
+		nms_thres=0.45): 
 	"""
 		Input: 
 			- Y_pred 	: a numpy array of all predictions
 				Must be in the format (n_default, 1 + numClasses + 4)
 			- numClasses: the number of boxes predicted
 			- nms_thres : threshold for non-maximum suppression
-			- score_thres: the threshold for class scores
 
 		Output: 
 			- Y_suppressed: a tensor of predictions that satisfy
@@ -42,20 +42,18 @@ def nms(Y_pred,
 
 	"""
 	n_boxes = Y_pred.shape[0]
+	
 	background_id = 0
 	background = Y_pred[:, 0]
-	scores = Y_pred[:, 1:numClasses+1]
 
-	max_scores = np.max(scores, axis=1)
-	# Suppress all predictions with the highest class score smaller than threshold
-	background[max_scores < score_thres] = 1
-	background = np.expand_dims(background, axis=1)
+	scores = Y_pred[:, 1:-4]
+
 	coords = Y_pred[:, -4:]
 
-	# Zip corresponding information for sorting 
-	boxes_zip = zip(background,scores, coords)
+	# Turn into lists of boxes
+	boxes = [Y_pred[i, :] for i in range(n_boxes)]
 
-	boxes = [(background, scores, coords) for background, scores, coords in boxes_zip]
+	picked = np.empty(shape=(0, 1 + numClasses + 4))
 
 	for c in range(numClasses):
 
@@ -64,61 +62,51 @@ def nms(Y_pred,
 
 		else: 
 			# Descendingly sort the boxes based on the scores of the current class
-			boxes.sort(key= lambda curr: curr[1][c], reverse=True)
+			boxes.sort(key= lambda curr: curr[c], reverse=True)
+			# print("Shape of boxes: {}".format(len(boxes)))
 
-			for i in range(len(boxes) - 1): 
-				# Get the current box
-				box = boxes[i]
-				# If the current box is a background class or 
-				# have confidence score of 0
+			remaining = np.stack(boxes, axis=0)
 
-				curr_background, curr_scores, curr_coords = box
-				if curr_background == 1 or curr_scores[c] == 0: 
-					continue
-				else: 
-					remaining_boxes = boxes[i + 1:]
+			while(remaining.shape[0] > 0): 
+				# Get the highest box
+				curr_coords = remaining[0, -4:]
+				# print("Curr shape: {}".format(remaining[0].shape))
+				# Add the current highest to the set 
+				picked = np.append(picked, np.expand_dims(remaining[0], axis=0), axis=0)
 
-					for b in remaining_boxes: 
-						_, _, coord = b
-						coord = np.expand_dims(coord, axis=0)
+				curr_coords = np.expand_dims(curr_coords, axis=0)
 
-						# _, _, curr_coords = box
+				rest_coords = remaining[:, -4:]
+				# print("Shape of curr coords and rest: {}, {}".format(curr_coords.shape, rest_coords.shape))
+				# Calculate the IoU with rest: 
 
-						# Expand the shape of current coords to (1, 4)
-						curr_coords = np.reshape(curr_coords, (-1, 4))
+				iou_scores = IoU(rest_coords, curr_coords)
+				# print("Shape of iou_scores: {}".format(iou_scores.shape))
+				# Make it a 1D array
+				iou_scores = np.squeeze(iou_scores, axis=1)
 
-						iou_scores = iou(curr_coords, coord)
-						print("IOU: {}".format(iou_scores[0]))
+				remaining = remaining[iou_scores <= nms_thres]
 
-						# for the remaining boxes, suppress all that have high overlapping area
-						b[background_id][0] = 1 if iou_scores > nms_thres else b[background_id][0]
-						print("background_id: {}".format(b[background_id][0]))
+				picked = np.append(picked, remaining, axis=0)
 
-	# Unzip the boxes variable
-	boxes = zip(*boxes)
-	boxes = [np.array(element) for element in boxes]
+	# Get only unique boxes
+	picked = np.unique(picked, axis=0)
+	# Append to be a 2D np array
+	result = np.stack(picked, axis=0)
 
-	Y_suppressed = np.empty(shape=(n_boxes, 0))
+	return result
 
-	# Append the elements to Y_suppress
-	for i in boxes: 
-		Y_suppressed = np.append(Y_suppressed, i, axis=1)
-
-	print(Y_suppressed)
-	print(type(Y_suppressed))
-
-	return Y_suppressed
+	
 
 def delete_background(Y_pred, numClasses): 
 	"""
-		A method to delete all background predictions
+		A method to delete all background box predictions
 	"""
+	# Get the background class
+	background = Y_pred[:, 0]
 
-	result = np.empty(shape=(0, numClasses + 1))
-
-	for pred in Y_pred: 
-		if pred[0] != 1: 
-			result = np.append(result, pred[1:])
+	# Only get boxes that are not background
+	result = Y_pred[background != 1]
 
 	return result
 
@@ -126,36 +114,26 @@ def top_k(Y_pred, top_k=200):
 	"""
 		Return only the top k highest boxes. Boxes should not contain background class
 	"""
-	n_pred = Y_pred.shape[0]
+	n_boxes = Y_pred.shape[0]
 
-	if n_pred < top_k: 
+	if n_boxes <= top_k: 
 		return Y_pred
 	# Find the highest score for each box
-	max_scores = np.amax(Y_pred[1: ])
+	max_scores = np.amax(Y_pred[:, :-4], axis=1)
 
-	scores = Y_pred[:, :numClasses]
+	scores = Y_pred[:, :-4]
 	coords = Y_pred[:, -4:]
 
-	boxes_zip = zip(max_scores, background, scores, coords)
+	boxes = [Y_pred[i, :] for i in range(n_boxes)]
 
-	boxes = [(max_scores, scores, coords) for max_scores, scores, coords in boxes_zip]
-
-	boxes.sort(key= lambda curr: curr[0], reverse=True)
-	result = np.empty(shape(top_k, 0))
+	boxes.sort(key= lambda curr: curr[1], reverse=True)
 
 	#Take only the highest k boxes: 
-
 	boxes = boxes[:top_k]
-	# Unzip boxes
-	boxes = zip(*boxes)
 
-	for i in boxes: 
-		result = np.append(result, i, axis=1)
+	result = np.stack(boxes, axis=0)
 
 	return result
-
-
-
 
 def iou(box1, box2): 
 	"""
@@ -171,14 +149,13 @@ def iou(box1, box2):
 	x1, y1, x12, y12 = np.split(box1, 4, axis=1)
 	x2, y2, x22, y22 = np.split(box2, 4, axis=1)
 
-
 	topleft_x = np.maximum(x1,x2)
 	topleft_y = np.maximum(y1,y2)
 
 	botright_x = np.minimum(x12,x22)
 	botright_y = np.minimum(y12,y22)
 
-	intersect = (botright_x - topleft_x)*(botright_y - topleft_y)
+	intersect = np.maximum(botright_x - topleft_x, 0)*np.maximum(botright_y - topleft_y, 0)
 	# Calculate areas of every box1 boxes and ground-truth boxes
 	area = (x12 - x1)*(y12 - y1) + (x2 - x22)*(y2 - y22)
 
@@ -192,10 +169,10 @@ def iou(box1, box2):
 	return iou_matrix
 
 
-def call(): 
-	Y_pred = np.random.rand(11, 15)
-	s = nms(Y_pred=Y_pred)
+# def call(): 
+# 	Y_pred = np.random.rand(11, 15)
+# 	s = nms(Y_pred=Y_pred)
 
 
-call()
+# call()
 
