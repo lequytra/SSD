@@ -139,11 +139,11 @@ log_dir = path + "/logs"
 
 tensorboard = TensorBoard(log_dir=log_dir, 
                           histogram_freq=0, 
-                          batch_size=32, 
+                          batch_size=16, 
                           write_graph=True, 
                           write_grads=True, 
                           write_images=True, 
-                          update_freq='epoch')
+                          update_freq='batch')
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', 
                                          factor=0.2,

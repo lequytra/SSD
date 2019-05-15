@@ -91,6 +91,65 @@ class Decoder():
 
 		return final_pred
 
+def decode_output(predictions, 
+				  numClasses=10,
+				  n_layers=6, 
+				  min_scale=0.2, 
+				  max_scale=0.9, 
+				  nms_thres=0.45, 
+				  score_thres=0.01, 
+				  map_size=[38, 19, 10, 5, 3, 1],
+				  top_k=200, 
+				  aspect_ratios=[0.5, 1, 2]):
+
+	defaults = generate_default_boxes(n_layers=n_layers, 
+										min_scale=min_scale,
+										max_scale=max_scale,
+										map_size=map_size, 
+										aspect_ratios=[0.5, 1, 2])
+
+	decoder = Decoder(predictions=predictions, 
+						defaults=defaults, 
+						numClasses=numClasses, 
+						nms_thres=np.float32(0), 
+						score_thres=np.float32(0), 
+						top_k=top_k)
+
+	decoded = decoder.prediction_out()
+
+	return decoded
+
+def batch_decoder(predictions, 
+				  numClasses=10,
+				  n_layers=6, 
+				  min_scale=0.2, 
+				  max_scale=0.9, 
+				  nms_thres=0.45, 
+				  score_thres=0.01, 
+				  top_k=200, 
+				  aspect_ratios=[0.5, 1, 2]): 
+
+	def func(preds):
+		return decode_output(predictions=preds, 
+							  numClasses=numClasses,
+							  n_layers=n_layers, 
+							  min_scale=min_scale, 
+							  max_scale=max_scale, 
+							  nms_thres=nms_thres, 
+							  score_thres=score_thres, 
+							  top_k=top_k, 
+							  aspect_ratios=aspect_ratios)
+
+	n_pred = predictions.shape[0]
+
+	batch_decoder = []
+
+	for i in range(n_pred): 
+		decoded = func(predictions[i])
+		batch_decoder.append(decoded)
+
+	return batch_decoder
+
 
 def main(): 
 	input_shape=(300, 300, 3)
@@ -107,22 +166,13 @@ def main():
 
 	Y = np.random.rand(1000, numClasses + 4)
 
-	defaults = generate_default_boxes(n_layers=n_predictions, 
-										min_scale=min_scale,
-										max_scale=max_scale,
-										map_size=prediction_size, 
-										aspect_ratios=[0.5, 1, 2])
+	
 
 	n_default = defaults.shape[0]
 
 	predictions = np.random.rand(n_default, numClasses + 5)
 
-	decoder = Decoder(predictions=predictions, 
-						defaults=defaults, 
-						numClasses=numClasses, 
-						nms_thres=np.float32(0), 
-						score_thres=np.float32(0), 
-						top_k=top_k)
+	
 
 	return decoder
 
