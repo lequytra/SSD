@@ -20,7 +20,7 @@ import h5py
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # Configuration of the model: 
 input_shape=(300, 300, 3)
-numClasses = 10
+numClasses = 70
 iou_thres=0.5 # for default and gt matching
 nms_thres=0.45 # IoU threshold for non-maximal suppression
 score_thres=0.01 # threshold for classification scores
@@ -34,7 +34,7 @@ prediction_size=[38, 19, 10, 5, 3, 1] # sizes of feature maps at each level
 data_dir = "/Users/tranle/mscoco"
 training_data = "val2017"
 # Initialize a parser object
-parser = Parser(data_dir, training_data)
+parser = Parser(data_dir, training_data, numClasses)
 
 # Load images and annotations for the image
 # For now, we load only 10 first classes and images are resize to (300,300,3) 
@@ -60,8 +60,8 @@ print("Encoding data ... ")
 
 
 # Get 2000 images for training
-X_train = X[:80]
-Y_train = Y[:80]
+X_train = X
+Y_train = Y
 
 # Get 1000 images for evaluation
 X_val = X[2001:3002]
@@ -157,9 +157,9 @@ callbacks = [checkpoints,
             reduce_lr]
 
 # Set training parameters
-batch_size = 1
+batch_size = 16
 initial_epoch = 0
-total_epochs = 3
+total_epochs = 5
 
 validation_split = 0.2
 # When you don't want to train on the entire dataset, use this
