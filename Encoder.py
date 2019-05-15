@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 import itertools as it 
 from parser import Parser
 from box_utils import IoU, generate_default_boxes
-
+import time
 
 
 class Encoder(): 
@@ -34,6 +34,7 @@ class Encoder():
 		self.iou_thres = iou_thres
 		self.default = default
 		self.background_id = 0
+		self.y_truth = y_truth
 		self.labels = y_truth[:, :-4]
 		self.boxes = y_truth[:, -4:]
 		self.iou_matrix = IoU(self.default, self.boxes)
@@ -121,11 +122,59 @@ class Encoder():
 		return self.matches
 
 	def get_encoded_data(self):
+		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
+		# encoded = np.empty(shape=(0, self.numClasses + 4))
 
 		n_default = self.default.shape[0]
+		n_box = self.boxes.shape[0]
 
+		# default (n_default, 4), pred (n_boxes, 4)
+		default = np.expand_dims(self.default, axis=1)
+		ground_truth = np.expand_dims(self.boxes, axis=0)
+		labels = np.expand_dims(self.labels, axis=0)
+
+
+		# Broadcasting the defaults and ground_truth to (n_default, n_box, 4)
+		default = np.broadcast_to(default, (n_default, n_box, 4))
+		ground_truth = np.broadcast_to(ground_truth, (n_default, n_box, 4))
+		labels = np.broadcast_to(labels, (n_default, n_box, self.numClasses))
+
+		# Calculate offsets of defaults to all ground_truth
+
+		xy_offset = (ground_truth[:, :, :2] - default[:, :, :2])/default[:, :, 2:]
+		wh_offset = np.log(ground_truth[:, :, 2:]/default[:, :, 2:])
+
+		coords = np.append(xy_offset, wh_offset, axis=-1)
+
+		print("Shape of coords: {}".format(coords.shape))
+		ground_truth_all = np.append(labels, coords, axis=-1)
+		print("shape of gt all: {}".format(ground_truth_all))
+
+		default_indices = [i for i in range(n_default)]
+		gt_indices = self.matches
+
+		# Take only matched boxes: 
+
+		matched_box = ground_truth_all[default_indices, gt_indices]
+
+		matched_box[gt_indices < 0] = 0
+
+		background = np.zeros(shape=(n_default, 1))
+
+		background[gt_indices < 0] = 1 
+
+		encoded_all = np.append(background, matched_box, axis=1)
+
+		print("Encoded shape: {}".format(encoded_all.shape))
+
+		return encoded_all
+
+
+	def get_encoded_data_2(self):
 		# Generate a template for the encoded labels (#default, 1 + numClasses + 4)
 		encoded = np.empty(shape=(0, self.numClasses + 4))
+
+		n_default = self.default.shape[0]
 
 		for i in range(n_default):
 			
@@ -189,7 +238,25 @@ def encode_batch(y_truth,
 
 	return encoded_all
 
+def encode_batch_2(y_truth, 
+				default, 
+				numClasses=10,
+				input_shape=(300,300,3),
+				iou_thres=0.5): 
+	
+	func = lambda Y : Encoder(y_truth=Y, 
+							default=default,
+			                numClasses=numClasses, 
+			                input_shape=input_shape,
+			                iou_thres=iou_thres).get_encoded_data_2()
 
+	encoded_all = [func(Y) for Y in y_truth]
+
+	# print(encoded_all[1:5])
+
+	encoded_all = np.array(encoded_all)
+
+	return encoded_all
 
 
 def main(Y): 
@@ -230,13 +297,36 @@ def main(Y):
 	X, Y = parser.load_data()
 	Y = Y[1:5]
 
-	Y = encode_batch(y_truth=Y, 
+	t = time.time()
+	Y_1 = encode_batch(y_truth=Y, 
 					default=default,
 	                numClasses=numClasses, 
 	                input_shape=(300,300,3),
 	                iou_thres=iou_thres)
 
-	return Y
+	elapse1 = time.time() - t
+	
+
+	t = time.time()
+	Y_2 = encode_batch_2(y_truth=Y, 
+						default=default,
+		                numClasses=numClasses, 
+		                input_shape=(300,300,3),
+		                iou_thres=iou_thres)
+
+	elapse2 = time.time() - t
+	
+
+
+
+	for i in range(4): 
+		print("Y1: {}".format(Y_1[i, :]))
+		print("Y2: {}".format(Y_2[i, :]))
+
+
+	print("Time for 1: {}".format(elapse1))
+	print("Time for 2: {}".format(elapse2))
+	return (Y_1, Y_2)
 
 if __name__ == '__main__':
 	
