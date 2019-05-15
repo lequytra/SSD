@@ -89,19 +89,26 @@ print("Shape of encoded eval labels: {}".format(Y_val.shape))
 print("Building model...")
 # Build the SSD model
 K.clear_session() # Clear previous session
+exist = True
 
-# Build the model
-model = build_SSD300(input_shape=input_shape, 
-                  numClasses=numClasses, 
-                  mode='training', 
-                  min_scale=min_scale, 
-                  max_scale=max_scale, 
-                  aspect_ratios=aspect_ratios, 
-                  iou_thres=iou_thres,
-                  nms_thres=nms_thres, 
-                  score_thres=score_thres, 
-                  top_k=top_k,
-                  n_predictions=n_predictions)
+model_path = os.getcwd()
+model_path = os.path.join(model_path, 'weights.04-0.38.hdf5')
+
+if exist: 
+  model = load_model(model_path, custom_objects={'loss_function': loss_function, 'iou': iou})
+else: 
+  # Build the model
+  model = build_SSD300(input_shape=input_shape, 
+                    numClasses=numClasses, 
+                    mode='training', 
+                    min_scale=min_scale, 
+                    max_scale=max_scale, 
+                    aspect_ratios=aspect_ratios, 
+                    iou_thres=iou_thres,
+                    nms_thres=nms_thres, 
+                    score_thres=score_thres, 
+                    top_k=top_k,
+                    n_predictions=n_predictions)
 
 # Instantiate the Adam optimizer for the model
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
@@ -147,7 +154,7 @@ tensorboard = TensorBoard(log_dir=log_dir,
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', 
                                          factor=0.2,
-                                         patience=5, 
+                                         patience=3, 
                                          min_lr=0.001)
 
 callbacks = [checkpoints, 
@@ -158,8 +165,8 @@ callbacks = [checkpoints,
 
 # Set training parameters
 batch_size = 16
-initial_epoch = 0
-total_epochs = 5
+initial_epoch = 5
+total_epochs = 10
 
 validation_split = 0.2
 # When you don't want to train on the entire dataset, use this
@@ -178,7 +185,6 @@ history = model.fit(x=X_train,
 
 plt.figure(figsize=(20, 12))
 plt.plot(history.history['loss'], label='Training Loss')
-
 plt.plot(history.history['val_loss'], label='Validation Loss')
 
 plt.legend(loc='best')

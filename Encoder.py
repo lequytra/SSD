@@ -116,8 +116,8 @@ class Encoder():
 		self.matches[matched >= 0] = matched[matched >= 0]
 
 		assert self.matches.shape[0] == self.default.shape[0]
-		# print(np.argmax(self.matches))
-		# print(np.amax(self.matches))
+		print(np.argmax(self.matches))
+		print(np.amax(self.matches))
 
 		return self.matches
 
@@ -154,6 +154,9 @@ class Encoder():
 		# Take only matched boxes: 
 
 		matched_box = ground_truth_all[default_indices, gt_indices]
+		print(matched_box.shape)
+
+		print(np.argmax(matched_box, axis=-1))
 
 		matched_box[gt_indices < 0] = 0
 
@@ -228,7 +231,7 @@ def encode_batch(y_truth,
 
 	encoded_all = [func(Y) for Y in y_truth]
 
-	# print(encoded_all[1:5])
+	print(encoded_all[1:5])
 
 	encoded_all = np.array(encoded_all)
 
@@ -257,7 +260,7 @@ def encode_batch_2(y_truth,
 
 def main(Y): 
 	input_shape=(300, 300, 3)
-	numClasses = 10
+	numClasses = 30
 	iou_thres=0.5 # for default and gt matching
 	nms_thres=0.45 # IoU threshold for non-maximal suppression
 	score_thres=0.01 # threshold for classification scores
@@ -283,7 +286,7 @@ def main(Y):
 	data_dir = "/Users/tranle/mscoco"
 	training_data = "val2017"
 	# Initialize a parser object
-	parser = Parser(data_dir, training_data)
+	parser = Parser(data_dir, training_data, numClasses=numClasses)
 
 
 	# Load images and annotations for the image
@@ -291,7 +294,7 @@ def main(Y):
 	# for training purposes
 
 	X, Y = parser.load_data()
-	Y = Y[1:5]
+	Y = Y[5:10]
 
 	t = time.time()
 	Y_1 = encode_batch(y_truth=Y, 
@@ -303,30 +306,30 @@ def main(Y):
 	elapse1 = time.time() - t
 	
 
-	t = time.time()
-	Y_2 = encode_batch_2(y_truth=Y, 
-						default=default,
-		                numClasses=numClasses, 
-		                input_shape=(300,300,3),
-		                iou_thres=iou_thres)
+	# t = time.time()
+	# Y_2 = encode_batch_2(y_truth=Y, 
+	# 					default=default,
+	# 	                numClasses=numClasses, 
+	# 	                input_shape=(300,300,3),
+	# 	                iou_thres=iou_thres)
 
-	elapse2 = time.time() - t
+	# elapse2 = time.time() - t
 	
 
 	print("Time for 1: {}".format(elapse1))
-	print("Time for 2: {}".format(elapse2))
-	return (Y_1, Y_2)
+	# print("Time for 2: {}".format(elapse2))
+	return Y_1
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 	
 
-# 	# X = np.random.rand(100, 300, 300, 3)
-# 	Y = np.random.rand(100, 3, 14)
+	# X = np.random.rand(100, 300, 300, 3)
+	Y = np.random.rand(100, 3, 14)
 
-# 	Y_train = main(Y)
+	Y_train = main(Y)
 
 	
-# 	print(Y_train.shape)
+	print(Y_train.shape)
 
-# 	print(type(Y_train))
+	print(type(Y_train))
 

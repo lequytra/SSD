@@ -11,7 +11,7 @@ def score_suppress(Y_pred,
 	# Get all label predictions
 	labels = Y_pred[:, :-4]
 	# Find the highest score in each class
-	max_label = np.amax(labels, axis=1)
+	max_label = np.amax(labels, axis=-1)
 
 
 	# For each box that has highest scores lower than threshold, 
@@ -20,7 +20,7 @@ def score_suppress(Y_pred,
 	Y_pred[max_label < score_thres, 0] = 1
 
 	# find the class with the highest scores
-	highest_class = np.argmax(labels, axis=1)
+	highest_class = np.argmax(labels, axis=-1)
 	# If it is most likely to be background, set background to 1
 	Y_pred[highest_class == 0, 0] = 1
 
@@ -126,7 +126,7 @@ def top_k(Y_pred, top_k=200):
 
 	boxes = [Y_pred[i, :] for i in range(n_boxes)]
 
-	boxes.sort(key= lambda curr: curr[0], reverse=True)
+	boxes.sort(key= lambda curr: curr[1], reverse=True)
 
 	#Take only the highest k boxes: 
 	boxes = boxes[:top_k]
@@ -134,9 +134,6 @@ def top_k(Y_pred, top_k=200):
 	result = np.stack(boxes, axis=0)
 
 	return result
-
-
-
 
 def iou(box1, box2): 
 	"""
@@ -149,14 +146,9 @@ def iou(box1, box2):
 						Jaccard index of each box2 boxes for
 						every ground-truth boxes. box2	"""
 
-	x1, y1, w12, h12 = np.split(box1, 4, axis=1)
-	x2, y2, w22, h22 = np.split(box2, 4, axis=1)
+	x1, y1, x12, y12 = np.split(box1, 4, axis=1)
+	x2, y2, x22, y22 = np.split(box2, 4, axis=1)
 
-	x12 = x1 + w12
-	y12 = y1 + h12
-	x22 = x2 + w22
-	y22 = y2 + h22
-	
 	topleft_x = np.maximum(x1,x2)
 	topleft_y = np.maximum(y1,y2)
 

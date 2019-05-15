@@ -49,6 +49,8 @@ class Decoder():
 
 		self.bboxes[:, -4:-2] = coords[:, :-2]*d_coords[:, -2:] + d_coords[:, :-2]
 		self.bboxes[:, -2:] = np.exp(coords[:, -2:])*d_coords[:, -2:]
+		self.bboxes[:, -2:] = self.bboxes[:, -4:-2] + self.bboxes[:, -2:]
+
 
 		self.decoded = np.append(self.labels, self.bboxes, axis=1)
 		# print("Decoded shape: {}".format(self.decoded.shape))
@@ -162,27 +164,44 @@ def main():
 	max_scale=0.9 # the largest scale of the feature map
 	aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated
 	n_predictions=6 # the number of prediction blocks
-	prediction_size=[37, 18, 10, 5, 3, 1] # sizes of feature maps at each level
+	prediction_size=[38, 19, 10, 5, 3, 1] # sizes of feature maps at each level
 
 	Y = np.random.rand(1000, numClasses + 4)
 
-	
+	default = generate_default_boxes(n_layers=n_predictions, 
+									min_scale=min_scale, 
+									max_scale=max_scale, 
+									map_size=prediction_size,
+									aspect_ratios=aspect_ratios)
 
-	n_default = defaults.shape[0]
 
-	predictions = np.random.rand(n_default, numClasses + 5)
+	n_default = default.shape[0]
+
+	predictions = np.random.rand(30, n_default, numClasses + 5)
+
+	decoder = batch_decoder(predictions=predictions, 
+							  numClasses=10,
+							  n_layers=6, 
+							  min_scale=0.2, 
+							  max_scale=0.9, 
+							  nms_thres=0.45, 
+							  score_thres=0.01, 
+							  top_k=200, 
+							  aspect_ratios=[0.5, 1, 2])
 
 	
 
 	return decoder
 
-# if __name__ == '__main__':
-	# decoder = main()
+if __name__ == '__main__':
+	
 
-	# results = decoder.prediction_out()
+	results = main()
+	print(len(results))
 
-	# print(results.shape)
-	# print(type(results))
+	for i in results: 
+		print(i)
+		print(i.shape)
 
 
 
