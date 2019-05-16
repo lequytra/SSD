@@ -89,31 +89,49 @@ class Parser():
         return self.ground_truth
 
 
-    def load_img_paths(self, fileName=None):
+    def load_img_paths(self, fileName=None, type="local"):
         '''
         Load all images of ten above categories
         '''
 
         # Open file for writing (overwrite mode)
         # Change path when running
-        path = os.getcwd()
+        if type=="local":
+            path = os.getcwd()
 
-        print("Writing Image Paths: ... \n")
+            print("Writing Image Paths: ... \n")
 
-        if(fileName==None): 
-            self.fileName = "imagePaths.txt"
-        else: 
-            self.fileName = fileName + ".txt"
+            if(fileName==None): 
+                self.fileName = "imagePaths.txt"
+            else: 
+                self.fileName = fileName + ".txt"
 
-        path = os.path.join(path, self.fileName)
+            path = os.path.join(path, self.fileName)
+            f= open(path,"w+")
 
-        f= open(path,"w+")
+            for imgId in self.img_ids:
+                im_path = '{}/{}/{:012}.jpg\n'.format(self.data_dir, self.data_type, imgId)
+                f.write(im_path)
 
-        for imgId in self.img_ids:
-            im_path = '{}/{}/{:012}.jpg\n'.format(self.data_dir, self.data_type, imgId)
-            f.write(im_path)
+            f.close()
+            
+        elif type=="online":
+            path = os.getcwd()
 
-        f.close()
+            if(fileName==None): 
+                self.fileName = "imagePaths.txt"
+            else: 
+                self.fileName = fileName + ".txt"
+
+            path = path + '/' + self.fileName
+            f= open(path,"w+")
+
+            for imgId in self.img_ids:
+                img = coco.loadImgs(imgId)
+                im_path = img[0]['coco_url']
+                f.write(im_path)
+
+            f.close()
 
     def load_training_imgs(self):
         path = os.getcwd()
@@ -137,40 +155,40 @@ class Parser():
             
         return np.array(im_collection)
 
-    def load_data(self): 
+    def load_data(self, type="local"): 
         """
             Output: 
                 Return a tuple of image, label
         """
         label = self.parse_json()
-        self.load_img_paths()
+        self.load_img_paths(type)
         im_collection = self.load_training_imgs()
 
         return (im_collection, label)
 
 
-def main(): 
-    data_dir = "/Users/tranle/mscoco"
-    #data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
-    training_data = "val2017"
-    numClasses = 10
-    # Initialize a parser object
-    print("Start parsing")
-    parser = Parser(data_dir, training_data, numClasses)
-    print("Done parsing")
+# def main(): 
+#     data_dir = "/Users/tranle/mscoco"
+#     #data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
+#     training_data = "val2017"
+#     numClasses = 10
+#     # Initialize a parser object
+#     print("Start parsing")
+#     parser = Parser(data_dir, training_data, numClasses)
+#     print("Done parsing")
 
-    # Load images and annotations for the image
-    # For now, we load only 10 first classes and images are resize to (300,300,3) 
-    # for training purposes
+#     # Load images and annotations for the image
+#     # For now, we load only 10 first classes and images are resize to (300,300,3) 
+#     # for training purposes
 
-    X, Y = parser.load_data()
+#     X, Y = parser.load_data()
 
-    # X = np.array(X)
-    Y = np.array(Y)
+#     # X = np.array(X)
+#     Y = np.array(Y)
 
-    print("Shape of parsed images: {}".format(X.shape))
-    print("Shape of parsed labels: {}".format(Y.shape))
-    print("Shape of one label: {}".format(Y[0].shape))
+#     print("Shape of parsed images: {}".format(X.shape))
+#     print("Shape of parsed labels: {}".format(Y.shape))
+#     print("Shape of one label: {}".format(Y[0].shape))
 
 
 
