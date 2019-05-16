@@ -38,6 +38,7 @@ print("Parsing Data ... \n")
 
 data_dir = "/Users/tranle/mscoco"
 training_data = "val2017"
+
 # Initialize a parser object
 parser = Parser(data_dir, training_data, numClasses)
 
@@ -84,8 +85,9 @@ K.clear_session() # Clear previous session
 
 exist = True
 
+weight_path = 'weights.epoch13-val_loss0.19.hdf5'
 model_path = os.getcwd()
-model_path = os.path.join(model_path, 'weights.04-0.38.hdf5')
+model_path = os.path.join(model_path, weight_path)
 
 def iou(Y_true, Y_pred): 
   return iou_metrics(Y_true, Y_pred, default)
