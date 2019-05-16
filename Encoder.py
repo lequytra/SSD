@@ -116,9 +116,6 @@ class Encoder():
 		self.matches[matched >= 0] = matched[matched >= 0]
 
 		assert self.matches.shape[0] == self.default.shape[0]
-		print(np.argmax(self.matches))
-		print(np.amax(self.matches))
-
 		return self.matches
 
 	def get_encoded_data(self):
@@ -154,9 +151,6 @@ class Encoder():
 		# Take only matched boxes: 
 
 		matched_box = ground_truth_all[default_indices, gt_indices]
-		print(matched_box.shape)
-
-		print(np.argmax(matched_box, axis=-1))
 
 		matched_box[gt_indices < 0] = 0
 
@@ -229,11 +223,9 @@ def encode_batch(y_truth,
 			                input_shape=input_shape,
 			                iou_thres=iou_thres).get_encoded_data()
 
-	encoded_all = [func(Y) for Y in y_truth]
+	encoded_all = np.array([func(Y) for Y in y_truth])
 
-	print(encoded_all[1:5])
-
-	encoded_all = np.array(encoded_all)
+	print("Finish Encoding Data!! \n")
 
 	return encoded_all
 
@@ -320,16 +312,16 @@ def main(Y):
 	# print("Time for 2: {}".format(elapse2))
 	return Y_1
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 	
 
-	# X = np.random.rand(100, 300, 300, 3)
-	Y = np.random.rand(100, 3, 14)
+# 	# X = np.random.rand(100, 300, 300, 3)
+# 	Y = np.random.rand(100, 3, 14)
 
-	Y_train = main(Y)
+# 	Y_train = main(Y)
 
 	
-	print(Y_train.shape)
+# 	print(Y_train.shape)
 
-	print(type(Y_train))
+# 	print(type(Y_train))
 

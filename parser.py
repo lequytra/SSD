@@ -98,6 +98,8 @@ class Parser():
         # Change path when running
         path = os.getcwd()
 
+        print("Writing Image Paths: ... \n")
+
         if(fileName==None): 
             self.fileName = "imagePaths.txt"
         else: 
@@ -118,6 +120,8 @@ class Parser():
         path = os.path.join(path, self.fileName)
 
         im_collection = []
+
+        print("Start Loading Images ... \n")
 
         with open(path) as f: 
 

@@ -1,6 +1,7 @@
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau, CSVLogger, LearningRateScheduler, TensorBoard
+from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau, CSVLogger, LearningRateScheduler, TensorBoard, RemoteMonitor
 from keras import backend as K
+from keras.models import load_model
 from keras.callbacks import History, ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from ssd300 import build_SSD300
@@ -15,6 +16,8 @@ from box_utils import IoU, generate_default_boxes
 from loss_function import loss_function
 from keras import metrics, losses
 import h5py
+import requests
+from time import time
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -31,6 +34,8 @@ aspect_ratios=[0.5, 1, 2] # aspect ratios of the default boxes to be generated
 n_predictions=6 # the number of prediction blocks
 prediction_size=[38, 19, 10, 5, 3, 1] # sizes of feature maps at each level
 
+print("Parsing Data ... \n")
+
 data_dir = "/Users/tranle/mscoco"
 training_data = "val2017"
 # Initialize a parser object
@@ -46,7 +51,7 @@ X = np.array(X)
 Y = np.array(Y)
 print("Shape of parsed images: {}".format(X.shape))
 print("Shape of parsed labels: {}".format(Y.shape))
-print("Shape of one label: {}".format(Y[0].shape))
+print("Shape of one label: {}\n\n".format(Y[0].shape))
 
 # Generate default boxes: 
 default = generate_default_boxes(n_layers=n_predictions, 
@@ -56,16 +61,12 @@ default = generate_default_boxes(n_layers=n_predictions,
                                 aspect_ratios=aspect_ratios)
 
 
-print("Encoding data ... ")
+print("Encoding data ... \n")
 
 
 # Get 2000 images for training
 X_train = X
 Y_train = Y
-
-# Get 1000 images for evaluation
-X_val = X[2001:3002]
-Y_val = Y[2001:3002]
 
 # Encode the labels and ground-truth boxes of the training images
 Y_train = encode_batch(y_truth=Y_train, 
@@ -74,25 +75,20 @@ Y_train = encode_batch(y_truth=Y_train,
                       input_shape=input_shape, 
                       iou_thres=iou_thres)
 
-# Encode the labels and ground-truth boxes of the evaluation images
-Y_val = encode_batch(y_truth=Y_val, 
-                      default=default, 
-                      numClasses=numClasses, 
-                      input_shape=input_shape, 
-                      iou_thres=iou_thres)
-
 print("Shape of parsed training images: {}".format(X_train.shape))
 print("Shape of encoded training labels: {}".format(Y_train.shape))
-print("Shape of parsed eval images: {}".format(X_val.shape))
-print("Shape of encoded eval labels: {}".format(Y_val.shape))
 
-print("Building model...")
+print("Building model...\n")
 # Build the SSD model
 K.clear_session() # Clear previous session
+
 exist = True
 
 model_path = os.getcwd()
 model_path = os.path.join(model_path, 'weights.04-0.38.hdf5')
+
+def iou(Y_true, Y_pred): 
+  return iou_metrics(Y_true, Y_pred, default)
 
 if exist: 
   model = load_model(model_path, custom_objects={'loss_function': loss_function, 'iou': iou})
@@ -111,11 +107,10 @@ else:
                     n_predictions=n_predictions)
 
 # Instantiate the Adam optimizer for the model
-adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0005)
 
 # Create a metrics function
-def iou(Y_true, Y_pred): 
-	return iou_metrics(Y_true, Y_pred, default)
+
 
 print("Compiling...")
 # Compile the model
@@ -125,28 +120,28 @@ model.compile(optimizer=adam, loss=loss_function, metrics=['accuracy', iou])
 # Path to store learn weights
 path = os.getcwd()
 
-checkpoints = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.hdf5', 
+checkpoints = ModelCheckpoint(filepath='weights.epoch{epoch:02d}-val_loss{val_loss:.2f}.hdf5', 
                              monitor='val_loss',
                              verbose=1, 
-                             save_best_only=True, 
+                             save_best_only=False, 
                              save_weights_only=False, 
                              mode='min', 
                              period=1)
 
 early_stopping = EarlyStopping(monitor='val_loss',
                                min_delta=0.0,
-                               patience=10,
+                               patience=15,
                                verbose=1)
 
 csv_logger = CSVLogger(filename='training_log.csv',
                        separator=',',
                        append=True)
 
-log_dir = path + "/logs"
+remote = RemoteMonitor()
 
-tensorboard = TensorBoard(log_dir=log_dir, 
+tensorboard = TensorBoard(log_dir="logs/1557971422.398355", 
                           histogram_freq=0, 
-                          batch_size=16, 
+                          batch_size=32, 
                           write_graph=True, 
                           write_grads=True, 
                           write_images=True, 
@@ -154,19 +149,20 @@ tensorboard = TensorBoard(log_dir=log_dir,
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', 
                                          factor=0.2,
-                                         patience=3, 
+                                         patience=15, 
                                          min_lr=0.001)
 
 callbacks = [checkpoints, 
             early_stopping, 
             csv_logger,
             tensorboard, 
-            reduce_lr]
+            reduce_lr, 
+            remote]
 
 # Set training parameters
-batch_size = 16
-initial_epoch = 5
-total_epochs = 10
+batch_size = 32
+initial_epoch = 10
+total_epochs = 30
 
 validation_split = 0.2
 # When you don't want to train on the entire dataset, use this
