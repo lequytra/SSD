@@ -99,6 +99,8 @@ class Parser():
         if type=="local":
             path = os.getcwd()
 
+            print("Writing Image Paths: ... \n")
+
             if(fileName==None): 
                 self.fileName = "imagePaths.txt"
             else: 
@@ -112,6 +114,7 @@ class Parser():
                 f.write(im_path)
 
             f.close()
+            
         elif type=="online":
             path = os.getcwd()
 
@@ -135,6 +138,8 @@ class Parser():
         path = os.path.join(path, self.fileName)
 
         im_collection = []
+
+        print("Start Loading Images ... \n")
 
         with open(path) as f: 
 
@@ -162,28 +167,28 @@ class Parser():
         return (im_collection, label)
 
 
-def main(): 
-    data_dir = "/Users/tranle/mscoco"
-    #data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
-    training_data = "val2017"
-    numClasses = 10
-    # Initialize a parser object
-    print("Start parsing")
-    parser = Parser(data_dir, training_data, numClasses)
-    print("Done parsing")
+# def main(): 
+#     data_dir = "/Users/tranle/mscoco"
+#     #data_dir = "/Users/ngophuongnhi/Desktop/csc262proj/cocoapi"
+#     training_data = "val2017"
+#     numClasses = 10
+#     # Initialize a parser object
+#     print("Start parsing")
+#     parser = Parser(data_dir, training_data, numClasses)
+#     print("Done parsing")
 
-    # Load images and annotations for the image
-    # For now, we load only 10 first classes and images are resize to (300,300,3) 
-    # for training purposes
+#     # Load images and annotations for the image
+#     # For now, we load only 10 first classes and images are resize to (300,300,3) 
+#     # for training purposes
 
-    X, Y = parser.load_data()
+#     X, Y = parser.load_data()
 
-    # X = np.array(X)
-    Y = np.array(Y)
+#     # X = np.array(X)
+#     Y = np.array(Y)
 
-    print("Shape of parsed images: {}".format(X.shape))
-    print("Shape of parsed labels: {}".format(Y.shape))
-    print("Shape of one label: {}".format(Y[0].shape))
+#     print("Shape of parsed images: {}".format(X.shape))
+#     print("Shape of parsed labels: {}".format(Y.shape))
+#     print("Shape of one label: {}".format(Y[0].shape))
 
 
 
