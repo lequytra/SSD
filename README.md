@@ -75,5 +75,5 @@ prediction images. We will update this `README.md` as our model progress.
 
 This work was started as our final project in CSC262: Computer Vision class. We would like to thank Professor Jerod Weinman 
 for his helpful instructions and comments on Convolutional Neural Networks and the SSD model. We also thank our friend
-Darshan Mehta for helpful discussions in understanding single pass object detection model, and the concept of anchor boxes. 
+Darshan Mehta (University of Washington) for helpful discussions in understanding single pass object detection model, and the concept of anchor boxes. 
 
