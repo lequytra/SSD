@@ -77,3 +77,5 @@ This work was started as our final project in CSC262: Computer Vision class. We 
 for his helpful instructions and comments on Convolutional Neural Networks and the SSD model. We also thank our friend
 Darshan Mehta (University of Washington) for helpful discussions in understanding single pass object detection model, and the concept of anchor boxes. 
 
+### Notice:
+There might be identation errors in our code.
