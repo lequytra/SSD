@@ -78,4 +78,4 @@ for his helpful instructions and comments on Convolutional Neural Networks and t
 Darshan Mehta (University of Washington) for helpful discussions in understanding single pass object detection model, and the concept of anchor boxes. 
 
 ### Notice:
-Python randomly throws indentation error. In case, the code is not working, please refer to the error report to fix the code.
+Python randomly throws indentation error. In case, the code is not working, please refer to the error report to reindent the code.
